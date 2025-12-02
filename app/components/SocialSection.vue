@@ -9,8 +9,8 @@ const socials = [
   {
     icon: 'lucide:linkedin',
     title: 'LinkedIn',
-    link: 'LinkedIn.com/iman-mohammadi',
-    id: 'Iman Mohammadi',
+    link: 'https://www.linkedin.com/in/iman-mohammadiii/',
+    id: 'iman-mohammadiii',
   },
 ]
 </script>
