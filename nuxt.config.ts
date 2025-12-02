@@ -8,8 +8,8 @@ export default defineNuxtConfig({
 
   app: {
     head: {
-      title: 'Your Name — Portfolio',
-      meta: [{ name: 'description', content: 'Creative front-end portfolio — bordered minimalism design', },],
+      title: 'Iman Mohammadi — Portfolio',
+      meta: [{ name: 'description', content: 'Iman Mohammadi is a creative front-end developer and UI designer with a passion for creating beautiful and functional web applications.', },],
     },
   },
 
