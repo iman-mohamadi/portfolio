@@ -28,7 +28,7 @@
 
       <footer class="border-panel small-muted">
         <div class="container border-l border-r p-2">
-          © {{ new Date().getFullYear() }} — Iman Mohammadi — Built with Nuxt
+          © {{ new Date().getFullYear() }} — Iman Mohammadi — Built with ❤️
         </div>
       </footer>
     </div>
