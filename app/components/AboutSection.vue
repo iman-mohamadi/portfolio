@@ -156,6 +156,20 @@ updateTimes()
             >im4n.mhmdi@gmail.com</a>
           </p>
         </div>
+        <div class="flex items-center gap-4 font-mono text-sm">
+          <div
+            class="flex size-6 shrink-0 items-center justify-center rounded-lg border border-muted-foreground/15 bg-muted ring-1 ring-edge ring-offset-1 ring-offset-background [&amp;_svg]:pointer-events-none [&amp;_svg]:text-muted-foreground [&amp;_svg:not([class*='size-'])]:size-4"
+            aria-hidden="true"
+          >
+            <UIcon
+              name="lucide:user-search"
+              class="size-4"
+            />
+          </div>
+          <p class="text-balance">
+            29 Years old with +8 years of experience
+          </p>
+        </div>
       </div>
     </div>
   </section>
