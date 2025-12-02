@@ -6,9 +6,24 @@
           class="text-black dark:text-white aspect-2/1 border-x border-edge select-none sm:aspect-3/1 flex items-center justify-center text-black dark:text-white screen-line-before screen-line-after before:-top-px after:-bottom-px bg-black/0.75 bg-[radial-gradient(var(--pattern-foreground)_1px,transparent_0)] bg-size-[10px_10px] bg-center [--pattern-foreground:var(--color-zinc-950)]/5 dark:bg-white/0.75 dark:[--pattern-foreground:var(--color-white)]/5"
           data-state="closed"
           data-slot="context-menu-trigger"
-          style="-webkit-touch-callout:none"
+          style="-webkit-touch-callout: none"
         >
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 14.449999809265137 111.1500015258789 32.14999771118164" data-asc="0.92" width="111.1500015258789" height="32.14999771118164"><defs/><g fill="#000000"><g transform="translate(0, 0)"><path d="M0 46.60L0 41.60L4.55 41.60L4.55 19.50L0 19.50L0 14.45L14.15 14.45L14.15 19.50L9.55 19.50L9.55 41.60L14.15 41.60L14.15 46.60L0 46.60ZM18.70 46.60L18.70 23.50L32.85 23.50L32.85 28.05L36.85 28.05L36.85 23.50L46.50 23.50L46.50 28.05L51.00 28.05L51.00 46.60L46 46.60L46 28.50L37.35 28.50L37.35 46.60L32.35 46.60L32.35 28.50L23.75 28.50L23.75 46.60L18.70 46.60ZM60.10 46.60L60.10 42.10L55.55 42.10L55.55 28.05L60.10 28.05L60.10 23.50L74.20 23.50L74.20 28.05L78.80 28.05L78.80 41.60L83.35 41.60L83.35 46.60L78.30 46.60L78.30 42.10L74.20 42.10L74.20 46.60L60.10 46.60M60.60 41.60L73.70 41.60L73.70 28.50L60.60 28.50L60.60 41.60ZM87.90 46.60L87.90 23.50L106.55 23.50L106.55 28.05L111.15 28.05L111.15 46.60L106.05 46.60L106.05 28.50L92.95 28.50L92.95 46.60L87.90 46.60Z"/></g></g></svg>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 14.449999809265137 111.1500015258789 32.14999771118164"
+            data-asc="0.92"
+            width="111.1500015258789"
+            height="32.14999771118164"
+          >
+            <defs />
+            <g fill="currentColor">
+              <g transform="translate(0, 0)">
+                <path
+                  d="M0 46.60L0 41.60L4.55 41.60L4.55 19.50L0 19.50L0 14.45L14.15 14.45L14.15 19.50L9.55 19.50L9.55 41.60L14.15 41.60L14.15 46.60L0 46.60ZM18.70 46.60L18.70 23.50L32.85 23.50L32.85 28.05L36.85 28.05L36.85 23.50L46.50 23.50L46.50 28.05L51.00 28.05L51.00 46.60L46 46.60L46 28.50L37.35 28.50L37.35 46.60L32.35 46.60L32.35 28.50L23.75 28.50L23.75 46.60L18.70 46.60ZM60.10 46.60L60.10 42.10L55.55 42.10L55.55 28.05L60.10 28.05L60.10 23.50L74.20 23.50L74.20 28.05L78.80 28.05L78.80 41.60L83.35 41.60L83.35 46.60L78.30 46.60L78.30 42.10L74.20 42.10L74.20 46.60L60.10 46.60M60.60 41.60L73.70 41.60L73.70 28.50L60.60 28.50L60.60 41.60ZM87.90 46.60L87.90 23.50L106.55 23.50L106.55 28.05L111.15 28.05L111.15 46.60L106.05 46.60L106.05 28.50L92.95 28.50L92.95 46.60L87.90 46.60Z"
+                />
+              </g>
+            </g>
+          </svg>
         </div>
       </div>
     </section>
@@ -21,7 +36,7 @@
               alt="Iman Mohammadi's avatar"
               src="/avatar.png"
               fetchpriority="high"
-            >
+            />
           </div>
         </div>
         <div class="flex flex-1 flex-col">
@@ -71,13 +86,19 @@
             <div
               class="relative h-12.5 border-t border-edge py-1 pl-4 sm:h-9 overflow-hidden flex flex-col justify-center"
             >
-              <p class="inline-block font-mono text-sm text-balance text-muted-foreground fade-slide">
+              <p
+                class="inline-block font-mono text-sm text-balance text-muted-foreground fade-slide"
+              >
                 Design Engineer
               </p>
-              <p class="inline-block font-mono text-sm text-balance text-muted-foreground fade-slide">
+              <p
+                class="inline-block font-mono text-sm text-balance text-muted-foreground fade-slide"
+              >
                 Creating with code. Small details matter.
               </p>
-              <p class="inline-block font-mono text-sm text-balance text-muted-foreground fade-slide">
+              <p
+                class="inline-block font-mono text-sm text-balance text-muted-foreground fade-slide"
+              >
                 Open Source Contributor
               </p>
             </div>
