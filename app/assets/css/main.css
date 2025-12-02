@@ -341,6 +341,7 @@
   * {
     scrollbar-width: thin;
     scrollbar-color: var(--border) transparent;
+    scroll-behavior: smooth;
   }
 
   [id] {
