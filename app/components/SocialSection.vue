@@ -12,6 +12,18 @@ const socials = [
     link: 'https://www.linkedin.com/in/iman-mohammadiii/',
     id: 'iman-mohammadiii',
   },
+  {
+    icon: 'lucide:instagram',
+    title: 'Instagram',
+    link: 'https://www.instagram.com/im_mhmdi',
+    id: 'im_mhmdi',
+  },
+  {
+    icon: 'simple-icons:telegram',
+    title: 'Telegram',
+    link: 'https://t.me/ienzo',
+    id: 'ienzo',
+  },
 ]
 </script>
 
