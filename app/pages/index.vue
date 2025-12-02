@@ -118,5 +118,15 @@
     <div class="container">
       <AboutTextSection />
     </div>
+    <Divider />
+    <div class="container">
+      <div class="border-x">
+        <Marquee />
+      </div>
+    </div>
+    <Divider />
+    <div class="container">
+      <StackSection />
+    </div>
   </div>
 </template>

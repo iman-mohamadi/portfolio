@@ -7,5 +7,5 @@
 </template>
 
 <script setup></script>
-
+useHead({ htmlAttrs: { class: 'dark' } })
 <style></style>
