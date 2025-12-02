@@ -6,6 +6,9 @@
   </UApp>
 </template>
 
-<script setup></script>
-useHead({ htmlAttrs: { class: 'dark' } })
-<style></style>
+<script setup>
+useHead({ htmlAttrs: { class: 'dark', }, },)
+</script>
+
+<style>
+</style>

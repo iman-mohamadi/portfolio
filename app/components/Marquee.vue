@@ -1,14 +1,6 @@
 <template>
-  <UMarquee
-    pause-on-hover
-    :overlay="false"
-    :repeat="3"
-    :ui="{
-      root: 'gap-0',
-      content: 'py-1',
-    }"
-  >
-    <div class="space-y-3 px-4 py-3 border-x" v-for="item in items" :key="item">
+  <UMarquee>
+    <div class="space-y-3 px-4 py-3 border" v-for="item in items" :key="item">
       <p>{{ item.title }}</p>
       <div class="flex items-center gap-2">
         <UAvatar :src="item.avatar" />
