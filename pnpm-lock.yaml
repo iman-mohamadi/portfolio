@@ -11,9 +11,6 @@ importers:
 
   .:
     dependencies:
-      '@iconify-json/lucide':
-        specifier: ^1.2.69
-        version: 1.2.69
       '@iconify-json/simple-icons':
         specifier: ^1.2.54
         version: 1.2.54
@@ -36,6 +33,15 @@ importers:
         specifier: ^0.181.2
         version: 0.181.2
     devDependencies:
+      '@iconify-json/devicon':
+        specifier: ^1.2.51
+        version: 1.2.51
+      '@iconify-json/hugeicons':
+        specifier: ^1.2.18
+        version: 1.2.18
+      '@iconify-json/lucide':
+        specifier: ^1.2.69
+        version: 1.2.69
       '@nuxt/eslint':
         specifier: ^1.9.0
         version: 1.9.0(@typescript-eslint/utils@8.45.0(eslint@9.37.0(jiti@2.6.1))(typescript@5.9.3))(@vue/compiler-sfc@3.5.22)(eslint@9.37.0(jiti@2.6.1))(magicast@0.3.5)(typescript@5.9.3)(vite@7.1.9(jiti@2.6.1)(lightningcss@1.30.1)(terser@5.44.0)(yaml@2.8.1))
@@ -497,6 +503,12 @@ packages:
   '@humanwhocodes/retry@0.4.3':
     resolution: {integrity: sha512-bV0Tgo9K4hfPCek+aMAn81RppFKv2ySDQeMoSZuvTASywNTnVJCArCZE2FWqpvIatKu7VMRLWlR1EazvVhDyhQ==}
     engines: {node: '>=18.18'}
+
+  '@iconify-json/devicon@1.2.51':
+    resolution: {integrity: sha512-mVsPNQqzWEaUEEvyD/tHOpPQUXadE6RIR7785D/MDlGBytCArCV1YeS/OmHI9929pHbBZXOASLPfpsw0UHkWJA==}
+
+  '@iconify-json/hugeicons@1.2.18':
+    resolution: {integrity: sha512-25jMZADNqWhDHzU2nla8r7XRZGUms9Q4priCa8t1jqZlnqhVwVNC8LXMdX1NzSdIepcwadexXkCYNgdVXkq5mQ==}
 
   '@iconify-json/lucide@1.2.69':
     resolution: {integrity: sha512-xOhNf74m+C+nSCObfEqYi34dXk1GMfMUcOB+gfqKY/bn0RcsPLinGfgouOvrUFEreDEFbCti7sdheTf5HESLTA==}
@@ -5277,6 +5289,14 @@ snapshots:
   '@humanwhocodes/module-importer@1.0.1': {}
 
   '@humanwhocodes/retry@0.4.3': {}
+
+  '@iconify-json/devicon@1.2.51':
+    dependencies:
+      '@iconify/types': 2.0.0
+
+  '@iconify-json/hugeicons@1.2.18':
+    dependencies:
+      '@iconify/types': 2.0.0
 
   '@iconify-json/lucide@1.2.69':
     dependencies:
