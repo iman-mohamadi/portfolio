@@ -3,8 +3,8 @@ const socials = [
   {
     icon: 'lucide:x',
     title: 'X (formerly Twitter)',
-    link: 'x.com/iman-mohammadi',
-    id: 'Iman Mohammadi',
+    link: 'https:/x.com/iman_mohamadiii',
+    id: 'iman_mohamadiii',
   },
   {
     icon: 'lucide:linkedin',
