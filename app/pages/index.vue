@@ -111,8 +111,11 @@
       <AboutSection />
     </div>
     <Divider />
-    <div class="container">
-      <SocialSection />
+    <div
+      class="container"
+      id="projects"
+    >
+      <ProjectsSection />
     </div>
     <Divider />
     <div class="container">
@@ -127,6 +130,13 @@
     <Divider />
     <div class="container">
       <StackSection />
+    </div>
+    <Divider />
+    <div
+      class="container"
+      id="contact"
+    >
+      <SocialSection />
     </div>
   </div>
 </template>
