@@ -1,60 +1,38 @@
-# Nuxt Starter Template
+# Iman Mohammadi — Design Engineer Portfolio
 
-[![Nuxt UI](https://img.shields.io/badge/Made%20with-Nuxt%20UI-00DC82?logo=nuxt&labelColor=020420)](https://ui.nuxt.com)
+![Portfolio Preview](public/avatar.png)
 
-Use this template to get started with [Nuxt UI](https://ui.nuxt.com) quickly.
+A high-performance, interactive portfolio website crafted with **Nuxt 4**, **Tailwind CSS 4**, and **Three.js**. This project showcases a clean grid-based layout, smooth GSAP animations, and an immersive 3D particle background.
 
-- [Live demo](https://starter-template.nuxt.dev/)
-- [Documentation](https://ui.nuxt.com/docs/getting-started/installation/nuxt)
+## ✨ Features
 
-<a href="https://starter-template.nuxt.dev/" target="_blank">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://ui.nuxt.com/assets/templates/nuxt/starter-dark.png">
-    <source media="(prefers-color-scheme: light)" srcset="https://ui.nuxt.com/assets/templates/nuxt/starter-light.png">
-    <img alt="Nuxt Starter Template" src="https://ui.nuxt.com/assets/templates/nuxt/starter-light.png">
-  </picture>
-</a>
+- **3D Interactive Background**: Custom Three.js particle sphere with mouse parallax and scroll-based deformations.
+- **Modern Styling**: Built with the latest **Tailwind CSS v4** using the new CSS-first configuration (`@theme`).
+- **Animations**: Smooth transitions and micro-interactions powered by **GSAP**.
+- **UI Components**: polished components using **Nuxt UI v4**.
+- **Dark/Light Mode**: Fully responsive theme switching.
+- **Type Safe**: Written in **TypeScript** for robustness.
 
-> The starter template for Vue is on https://github.com/nuxt-ui-templates/starter-vue.
+## 🛠 Tech Stack
 
-## Quick Start
+- **Framework**: [Nuxt 4](https://nuxt.com) & [Vue 3](https://vuejs.org)
+- **Styling**: [Tailwind CSS 4](https://tailwindcss.com) & [Nuxt UI](https://ui.nuxt.com)
+- **3D & Animation**: [Three.js](https://threejs.org) & [GSAP](https://gsap.com)
+- **Icons**: [Nuxt Icon](https://nuxt.com/modules/icon) (Lucide, Simple Icons)
+- **Package Manager**: [pnpm](https://pnpm.io)
 
-```bash [Terminal]
-npm create nuxt@latest -- -t github:nuxt-ui-templates/starter
-```
+## 🚀 Getting Started
 
-## Deploy your own
+This project uses **pnpm** as its package manager.
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-name=starter&repository-url=https%3A%2F%2Fgithub.com%2Fnuxt-ui-templates%2Fstarter&demo-image=https%3A%2F%2Fui.nuxt.com%2Fassets%2Ftemplates%2Fnuxt%2Fstarter-dark.png&demo-url=https%3A%2F%2Fstarter-template.nuxt.dev%2F&demo-title=Nuxt%20Starter%20Template&demo-description=A%20minimal%20template%20to%20get%20started%20with%20Nuxt%20UI.)
+### Prerequisites
 
-## Setup
+- Node.js (v20 or v22+ recommended)
+- pnpm installed (`npm install -g pnpm`)
 
-Make sure to install the dependencies:
+### Installation
 
-```bash
-pnpm install
-```
-
-## Development Server
-
-Start the development server on `http://localhost:3000`:
-
-```bash
-pnpm dev
-```
-
-## Production
-
-Build the application for production:
-
-```bash
-pnpm build
-```
-
-Locally preview production build:
-
-```bash
-pnpm preview
-```
-
-Check out the [deployment documentation](https://nuxt.com/docs/getting-started/deployment) for more information.
+1. Clone the repository:
+   ```bash
+   git clone [https://github.com/iman-mohamadi/portfolio.git](https://github.com/iman-mohamadi/portfolio.git)
+   cd portfolio
