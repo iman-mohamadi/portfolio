@@ -1,6 +1,13 @@
 <script setup lang="ts">
 const projects = [
   {
+    title: 'Raya UI',
+    description: 'A modern, responsive, and accessible UI component library built for speed.',
+    link: 'https://raya-ui.vercel.app',
+    icon: 'lucide:layout-template',
+    tags: ['UI Library', 'Open Source',],
+  },
+  {
     title: 'Hotelyar',
     description: 'Premier hotel booking platform with comprehensive search and reservation capabilities.',
     link: 'https://hotelyar.com',
@@ -21,13 +28,7 @@ const projects = [
     icon: 'lucide:plane',
     tags: ['Travel', 'Services',],
   },
-  {
-    title: 'Enzo UI',
-    description: 'A modern, responsive, and accessible UI component library built for speed.',
-    link: 'https://enzo-ui.vercel.app',
-    icon: 'lucide:layout-template',
-    tags: ['UI Library', 'Open Source',],
-  },
+
 ]
 </script>
 
