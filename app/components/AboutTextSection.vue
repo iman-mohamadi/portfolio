@@ -28,40 +28,28 @@
       >
         <ul class="list-disc px-4 space-y-2">
           <li>
-            <strong>Front-End Engineer</strong> with <strong>8+ years of experience</strong>,
-            focused on crafting highly interactive, visually polished user interfaces with
-            clean architecture and obsessive attention to detail.
+            <strong>Founder of Raya UI</strong> and Senior Frontend Engineer with <strong>8+ years of experience</strong>.
+            I specialize in architecting large-scale applications and building high-performance, open-source UI libraries.
           </li>
 
           <li>
-            Specialized in <strong>Vue.js</strong>, <strong>Nuxt.js</strong>, <strong>Three.js</strong>,
-            and modern front-end tooling—building animation-rich, 3D-enhanced experiences
-            that feel smooth, fast, and intentionally designed.
+            As the <strong>Sole Frontend Developer</strong> for major platforms like <strong>Hotelyar</strong> and <strong>Woodcoder</strong>,
+            I have single-handedly managed complex architectures, ensuring speed, reliability, and responsiveness for high-volume traffic.
           </li>
 
           <li>
-            Passionate about experimenting with creative UI/UX, micro-interactions,
-            scroll-based animations, and blending 3D elements with traditional web layouts
-            to create immersive portfolio and product experiences.
+            Specialized in <strong>Vue.js</strong>, <strong>Nuxt.js</strong>, and <strong>Three.js</strong>,
+            blending technical engineering with creative visuals to build animation-rich, 3D-enhanced experiences.
           </li>
 
           <li>
-            Experienced in crafting <strong>high-performance</strong> interfaces using
-            Tailwind, GSAP, Lenis, ScrollTrigger, and custom shader-based effects in Three.js,
-            pushing the boundary of what a web experience can look and feel like.
+            Passionate about open source contribution and experimenting with creative UI/UX,
+            micro-interactions, and custom shader-based effects to push the boundaries of web development.
           </li>
 
           <li>
-            Currently focused on building a modern, animated portfolio showcasing
-            interactive 3D backgrounds, smooth page transitions, and refined component-level
-            details — designed to help clients and companies instantly feel the quality of
-            your work.
-          </li>
-
-          <li>
-            Based in <strong>Tehran</strong> — working with international clients and teams,
-            and continuously exploring new ideas through personal projects, prototypes,
-            and experimental UI concepts.
+            Based in <strong>Tehran</strong> — continuously exploring new ideas through personal projects
+            and delivering production-ready software used by thousands of users.
           </li>
         </ul>
 

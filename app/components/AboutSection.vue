@@ -54,7 +54,7 @@ updateTimes()
     >
       <div class="flex items-center gap-4 font-mono text-sm">
         <div
-          class="flex size-6 shrink-0 items-center justify-center rounded-lg border border-muted-foreground/15 bg-muted ring-1 ring-edge ring-offset-1 ring-offset-background [&amp;_svg]:pointer-events-none [&amp;_svg]:text-muted-foreground [&amp;_svg:not([class*='size-'])]:size-4"
+          class="flex size-6 shrink-0 items-center justify-center rounded-lg border border-muted-foreground/15 bg-muted ring-1 ring-edge ring-offset-1 ring-offset-background [&_svg]:pointer-events-none [&_svg]:text-muted-foreground [&_svg:not([class*='size-'])]:size-4"
           aria-hidden="true"
         >
           <UIcon
@@ -63,19 +63,13 @@ updateTimes()
           />
         </div>
         <p class="text-balance">
-          Senior Frontend Developer &amp; UI Design Lead @<a
-            class="underline-offset-4 hover:underline ml-0.5 font-medium"
-            target="_blank"
-            rel="noopener noreferrer"
-            href="https://hotelyar.com/"
-            aria-label="hotelyar website"
-          >Arnika Mehr Kish</a>
+          Founder of <a href="https://raya-ui.com" target="_blank" class="underline-offset-4 hover:underline font-medium">Raya UI</a> & Sole Frontend Developer
         </p>
       </div>
       <div class="grid gap-x-12 gap-y-2.5 sm:grid-cols-2">
         <div class="flex items-center gap-4 font-mono text-sm">
           <div
-            class="flex size-6 shrink-0 items-center justify-center rounded-lg border border-muted-foreground/15 bg-muted ring-1 ring-edge ring-offset-1 ring-offset-background [&amp;_svg]:pointer-events-none [&amp;_svg]:text-muted-foreground [&amp;_svg:not([class*='size-'])]:size-4"
+            class="flex size-6 shrink-0 items-center justify-center rounded-lg border border-muted-foreground/15 bg-muted ring-1 ring-edge ring-offset-1 ring-offset-background [&_svg]:pointer-events-none [&_svg]:text-muted-foreground [&_svg:not([class*='size-'])]:size-4"
             aria-hidden="true"
           >
             <UIcon
@@ -95,7 +89,7 @@ updateTimes()
         </div>
         <div class="flex items-center gap-4 font-mono text-sm">
           <div
-            class="flex size-6 shrink-0 items-center justify-center rounded-lg border border-muted-foreground/15 bg-muted ring-1 ring-edge ring-offset-1 ring-offset-background [&amp;_svg]:pointer-events-none [&amp;_svg]:text-muted-foreground [&amp;_svg:not([class*='size-'])]:size-4"
+            class="flex size-6 shrink-0 items-center justify-center rounded-lg border border-muted-foreground/15 bg-muted ring-1 ring-edge ring-offset-1 ring-offset-background [&_svg]:pointer-events-none [&_svg]:text-muted-foreground [&_svg:not([class*='size-'])]:size-4"
             aria-hidden="true"
           >
             <UIcon
@@ -118,7 +112,7 @@ updateTimes()
         </div>
         <div class="flex items-center gap-4 font-mono text-sm">
           <div
-            class="flex size-6 shrink-0 items-center justify-center rounded-lg border border-muted-foreground/15 bg-muted ring-1 ring-edge ring-offset-1 ring-offset-background [&amp;_svg]:pointer-events-none [&amp;_svg]:text-muted-foreground [&amp;_svg:not([class*='size-'])]:size-4"
+            class="flex size-6 shrink-0 items-center justify-center rounded-lg border border-muted-foreground/15 bg-muted ring-1 ring-edge ring-offset-1 ring-offset-background [&_svg]:pointer-events-none [&_svg]:text-muted-foreground [&_svg:not([class*='size-'])]:size-4"
             aria-hidden="true"
           >
             <UIcon
@@ -138,7 +132,7 @@ updateTimes()
         </div>
         <div class="flex items-center gap-4 font-mono text-sm">
           <div
-            class="flex size-6 shrink-0 items-center justify-center rounded-lg border border-muted-foreground/15 bg-muted ring-1 ring-edge ring-offset-1 ring-offset-background [&amp;_svg]:pointer-events-none [&amp;_svg]:text-muted-foreground [&amp;_svg:not([class*='size-'])]:size-4"
+            class="flex size-6 shrink-0 items-center justify-center rounded-lg border border-muted-foreground/15 bg-muted ring-1 ring-edge ring-offset-1 ring-offset-background [&_svg]:pointer-events-none [&_svg]:text-muted-foreground [&_svg:not([class*='size-'])]:size-4"
             aria-hidden="true"
           >
             <UIcon
@@ -151,14 +145,14 @@ updateTimes()
               class="underline-offset-4 hover:underline"
               target="_blank"
               rel="noopener noreferrer"
-              href="mailto:im4n.mhmdi@gmail.com"
-              aria-label="Send email to im4n.mhmdi@gmail.com"
-            >im4n.mhmdi@gmail.com</a>
+              href="mailto:im.enzo.021@gmail.com"
+              aria-label="Send email to im.enzo.021@gmail.com"
+            >im.enzo.021@gmail.com</a>
           </p>
         </div>
         <div class="flex items-center gap-4 font-mono text-sm">
           <div
-            class="flex size-6 shrink-0 items-center justify-center rounded-lg border border-muted-foreground/15 bg-muted ring-1 ring-edge ring-offset-1 ring-offset-background [&amp;_svg]:pointer-events-none [&amp;_svg]:text-muted-foreground [&amp;_svg:not([class*='size-'])]:size-4"
+            class="flex size-6 shrink-0 items-center justify-center rounded-lg border border-muted-foreground/15 bg-muted ring-1 ring-edge ring-offset-1 ring-offset-background [&_svg]:pointer-events-none [&_svg]:text-muted-foreground [&_svg:not([class*='size-'])]:size-4"
             aria-hidden="true"
           >
             <UIcon

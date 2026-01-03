@@ -1,8 +1,10 @@
-# Iman Mohammadi — Design Engineer Portfolio
+# Iman Mohammadi — Founder of Raya UI & Design Engineer
 
 ![Portfolio Preview](public/avatar.png)
 
-A high-performance, interactive portfolio website crafted with **Nuxt 4**, **Tailwind CSS 4**, and **Three.js**. This project showcases a clean grid-based layout, smooth GSAP animations, and an immersive 3D particle background.
+The personal portfolio and source code of **Iman Mohammadi**, Founder of **[Raya UI](https://raya-ui.com)** and Sole Frontend Developer of Hotelyar and Woodcoder.
+
+This high-performance website is crafted with **Nuxt 4**, **Tailwind CSS 4**, and **Three.js**, showcasing a clean grid-based layout, smooth GSAP animations, and an immersive 3D particle background.
 
 ## ✨ Features
 

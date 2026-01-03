@@ -2,33 +2,32 @@
 const projects = [
   {
     title: 'Raya UI',
-    description: 'A modern, responsive, and accessible UI component library built for speed.',
-    link: 'https://raya-ui.vercel.app',
+    description: 'Founder & Creator — A modern, responsive, and accessible UI component library built for speed and performance.',
+    link: 'https://raya-ui.com',
     icon: 'lucide:layout-template',
-    tags: ['UI Library', 'Open Source',],
+    tags: ['Founder', 'Open Source', 'UI Library'],
   },
   {
     title: 'Hotelyar',
-    description: 'Premier hotel booking platform with comprehensive search and reservation capabilities.',
+    description: 'Sole Frontend Developer — The leading hotel booking platform handling high-volume traffic and complex reservation logic.',
     link: 'https://hotelyar.com',
     icon: 'lucide:hotel',
-    tags: ['Vue', 'Nuxt', 'Booking',],
+    tags: ['Sole Developer', 'Nuxt', 'High Scale'],
   },
   {
     title: 'Woodcoder',
-    description: 'Educational platform and community resources for developers and coding enthusiasts.',
+    description: 'Sole Frontend Developer — Comprehensive educational platform and community resources for developers.',
     link: 'http://woodcoder.com',
     icon: 'lucide:code-2',
-    tags: ['Education', 'Community',],
+    tags: ['Sole Developer', 'Education', 'Community'],
   },
   {
     title: 'Bootimar',
-    description: 'Travel services provider offering unique flight booking and tour experiences.',
+    description: 'Lead Developer — Travel services provider offering unique flight booking and tour experiences.',
     link: 'https://bootimar.com',
     icon: 'lucide:plane',
-    tags: ['Travel', 'Services',],
+    tags: ['Travel', 'Services'],
   },
-
 ]
 </script>
 
@@ -46,7 +45,7 @@ const projects = [
         data-slot="panel-title"
         class="text-3xl font-semibold"
       >
-        Projects
+        Real-World Projects
       </h2>
     </header>
     <div
@@ -59,7 +58,7 @@ const projects = [
         :href="project.link"
         target="_blank"
         rel="noopener noreferrer"
-        class="group flex flex-col gap-3 p-4 border border-border hover:bg-accent/50 hover:border-accent-foreground/20 transition-all"
+        class="group flex flex-col gap-3 p-4 border border-edge hover:bg-accent/50 hover:border-accent-foreground/20 transition-all"
       >
         <div class="flex items-start justify-between">
           <div class="size-10 flex items-center justify-center rounded-md border border-border bg-muted/30">
