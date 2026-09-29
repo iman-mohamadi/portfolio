@@ -7,7 +7,6 @@ import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js'
 import { createSky, createSkyline } from './sky.js'
 import { createFxPass, Trail } from './fx.js'
 import { createAudio } from './audio.js'
-import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
 import { ZONES, PROJECTS, projZones, JOBS, SKILLS, STATS, DIALOGUE, ORB_NAMES, ARC, gateX, GATE_Z } from './content.js'
 
 const $ = (s) => document.querySelector(s)
@@ -153,7 +152,7 @@ function gpuPoints({ N, radius, height, color, size, speed = 0.4, opacity = 0.6,
 gpuPoints({ N: isMobile ? 260 : 650, radius: 85, height: 14, color: 0xb9a8ff, size: 0.2, speed: 0.5 })
 
 /* ------------------------------------------------------------------ car */
-const car = { pos: new THREE.Vector3(0, 0, 6), ang: 0, vel: new THREE.Vector2(), speed: 0, fwd: 0, turn: 0, drift: 0, boost: 0, energy: 1, padKick: 0, group: new THREE.Group(), body: new THREE.Group(), wheels: [] }
+const car = { pos: new THREE.Vector3(0, 0, 6), ang: 0, vel: new THREE.Vector2(), radius: 1.25, rearOff: 1.3, track: 0.85, mw: null, aero: null, speed: 0, fwd: 0, turn: 0, drift: 0, boost: 0, energy: 1, padKick: 0, group: new THREE.Group(), body: new THREE.Group(), wheels: [] }
 {
   const b = car.body
   const hull = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.45, 2.7), dark(0x14141c, 0.35, 0.7)); hull.position.y = 0.45; b.add(hull)
@@ -664,7 +663,7 @@ function updateCar(dt, t) {
       audio.blip(); buzz(15); sparks.burst(q.x, 0.4, q.z, 0x7ee0ff, 16, 8)
     }
   }
-  if (collideCircle(car.pos.x, car.pos.z, 1.25, hitOut)) {
+  if (collideCircle(car.pos.x, car.pos.z, car.radius, hitOut)) {
     car.pos.x = hitOut.x; car.pos.z = hitOut.z
     const vn = car.vel.x * hitOut.nx + car.vel.y * hitOut.nz
     if (vn < 0) { car.vel.x -= hitOut.nx * vn * 1.4; car.vel.y -= hitOut.nz * vn * 1.4; if (vn < -5) { audio.thud(); buzz(28); shake = Math.min(0.5, -vn * 0.03); sparks.burst(car.pos.x - hitOut.nx * 1.2, 0.6, car.pos.z - hitOut.nz * 1.2, 0xffd0e4, 16, 7) } }
@@ -674,21 +673,26 @@ function updateCar(dt, t) {
   car.body.rotation.z = lerp(car.body.rotation.z, car.turn * clamp(car.speed / 25, -1, 1) * 0.12, damp(dt, 8))
   car.body.rotation.x = lerp(car.body.rotation.x, -inp.f * 0.05, damp(dt, 6))
   car.body.position.y = Math.sin(t * 40) * 0.006 * clamp(Math.abs(car.speed) / 20, 0, 1)
-  for (const w of car.wheels) w.children[0].rotation.x += car.speed * dt / 0.4, w.children[1].rotation.x = w.children[0].rotation.x
-  car.wheels[0].rotation.y = car.wheels[1].rotation.y = -car.turn * 0.45
+  if (car.mw) {
+    for (const w of car.mw) { w.g.rotation.x += car.speed * dt / w.r; if (w.front) w.g.rotation.y = -car.turn * 0.45 }
+    if (car.aero) { const a = car.aero; a.t += ((car.boost > 0.25 ? 1 : 0) - a.t) * damp(dt, 2.2); a.action.time = a.t * a.dur; a.mixer.update(0) }
+  } else {
+    for (const w of car.wheels) w.children[0].rotation.x += car.speed * dt / 0.4, w.children[1].rotation.x = w.children[0].rotation.x
+    car.wheels[0].rotation.y = car.wheels[1].rotation.y = -car.turn * 0.45
+  }
   pool.position.set(car.pos.x, 0.04, car.pos.z); pool.material.opacity = 0.5 + car.boost * 0.4
   // light trails from the rear wheels
   {
-    const tx = car.pos.x - fx * 1.3, tz = car.pos.z - fz * 1.3, mv = Math.abs(car.speed) > 3
+    const tx = car.pos.x - fx * car.rearOff, tz = car.pos.z - fz * car.rearOff, mv = Math.abs(car.speed) > 3
     const hex = car.boost > 0.3 ? 0x7ee0ff : PINK, w = 1 + car.boost * 0.8
-    trailL.update(dt, tx + rx * 0.85, tz + rz * 0.85, rx, rz, hex, mv, w, secret ? 1 : 0)
-    trailR.update(dt, tx - rx * 0.85, tz - rz * 0.85, rx, rz, hex, mv, w, secret ? 1 : 0)
+    trailL.update(dt, tx + rx * car.track, tz + rz * car.track, rx, rz, hex, mv, w, secret ? 1 : 0)
+    trailR.update(dt, tx - rx * car.track, tz - rz * car.track, rx, rz, hex, mv, w, secret ? 1 : 0)
   }
   // sparks: drift smoke + boost flame
   const drifting = Math.abs(latSpeed) > 4
   if (drifting || car.boost > 0.5) {
     for (const s of [-1, 1]) {
-      const bx = car.pos.x - fx * 1.3 + rx * s * 0.85, bz = car.pos.z - fz * 1.3 + rz * s * 0.85
+      const bx = car.pos.x - fx * car.rearOff + rx * s * car.track, bz = car.pos.z - fz * car.rearOff + rz * s * car.track
       sparks.emit(bx, 0.15, bz, -fx * 3 + (Math.random() - 0.5) * 2, 1 + Math.random() * 2, -fz * 3 + (Math.random() - 0.5) * 2, car.boost > 0.5 ? 0x7ee0ff : PINK, 0.5)
     }
   }
@@ -699,7 +703,7 @@ function updatePushables(dt) {
   for (const p of pushables) {
     p.vx *= Math.exp(-1.7 * dt); p.vz *= Math.exp(-1.7 * dt)
     p.x += p.vx * dt; p.z += p.vz * dt
-    const dx = p.x - car.pos.x, dz = p.z - car.pos.z, m = p.r + 1.2, d = Math.hypot(dx, dz)
+    const dx = p.x - car.pos.x, dz = p.z - car.pos.z, m = p.r + car.radius - 0.05, d = Math.hypot(dx, dz)
     if (d < m && d > 1e-4) {
       const nx = dx / d, nz = dz / d; p.x = car.pos.x + nx * m; p.z = car.pos.z + nz * m
       const rel = car.vel.x * nx + car.vel.y * nz
@@ -744,6 +748,7 @@ function unlockSecret() {
 const camLook = new THREE.Vector3(), camDes = new THREE.Vector3(), tgt = new THREE.Vector3()
 let camSnap = true, menuAng = 0.6
 function updateCamera(dt, t) {
+  if (import.meta.env.DEV && window.__cam) { camera.position.set(...window.__cam.p); camera.lookAt(...window.__cam.l); return }
   const fx = -Math.sin(car.ang), fz = -Math.cos(car.ang), sn = clamp(Math.abs(car.speed) / 30, 0, 1)
   if (!started) {
     menuAng += dt * 0.12
@@ -833,17 +838,37 @@ const muteBtn = $('#muteBtn')
 const paintMute = () => { muteBtn.textContent = audio.muted ? '♪ off' : '♪ on'; muteBtn.setAttribute('aria-pressed', String(!audio.muted)) }
 muteBtn.addEventListener('click', () => { audio.setMuted(!audio.muted); paintMute() }); paintMute()
 
+/** Small studio of neon light panels, baked to a PMREM map so glossy paint reflects the world's pink/violet/cyan glow. */
+function neonEnv() {
+  const es = new THREE.Scene(); es.background = new THREE.Color(0x06050c)
+  const panel = (c, i, w, h, x, y, z) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color: new THREE.Color(c).multiplyScalar(i), side: THREE.DoubleSide })); m.position.set(x, y, z); m.lookAt(0, 0, 0); es.add(m) }
+  panel(PINK, 7, 14, 3.5, -9, 3, 3); panel(VIOLET, 7, 14, 3.5, 9, 3, -3); panel(0x7ee0ff, 6, 16, 2.5, 0, 10, 0)
+  panel(0xffffff, 4, 18, 0.7, 0, 5, -10); panel(0xffffff, 2.2, 18, 0.7, 0, 5, 10); panel(PINK, 3, 24, 4, 0, -3, 0)
+  const pm = new THREE.PMREMGenerator(renderer), tex = pm.fromScene(es, 0.03).texture; pm.dispose()
+  return tex
+}
 function applyModels(m) {
   if (!(m.car || m.avatar || m.prop)) return
-  const pm = new THREE.PMREMGenerator(renderer)
-  scene.environment = pm.fromScene(new RoomEnvironment(), 0.04).texture; scene.environmentIntensity = 0.35
-  if (m.car) { car.body.children.forEach((c) => (c.visible = false)); car.wheels.forEach((w) => (w.visible = false)); car.body.add(m.car.object) }
+  const env = neonEnv()
+  const dress = (obj, k = 1) => obj.traverse((o) => { if (o.isMesh) for (const mm of [].concat(o.material)) { if (mm.isMeshStandardMaterial || mm.isMeshPhysicalMaterial) { mm.envMap = env; mm.envMapIntensity = k; mm.needsUpdate = true } } })
+  if (m.car) {
+    car.body.children.forEach((c) => (c.visible = false)); car.wheels.forEach((w) => (w.visible = false))
+    dress(m.car.object, 1.25); car.body.add(m.car.object)
+    const sc = m.car.object.scale.x
+    car.radius = 1.5; car.rearOff = 1.65; car.track = 0.8
+    if (m.car.wheels?.length) car.mw = m.car.wheels.map((w) => ({ g: w.group, front: w.front, r: w.radius * sc }))
+    if (m.car.clips.length) {
+      const mixer = new THREE.AnimationMixer(m.car.scene), action = mixer.clipAction(m.car.clips[0]); action.play(); action.paused = true; action.time = 0; mixer.update(0)
+      car.aero = { mixer, action, dur: m.car.clips[0].duration, t: 0 }
+    }
+    pool.scale.setScalar(1.25)
+  }
   if (m.avatar) {
     avatar.children.forEach((c) => { if (c !== avatar.halo && c !== avatar.tag) c.visible = false })
-    avatar.scale.setScalar(1); avatar.tag.position.y = 5; avatar.add(m.avatar.object); avatar.model = m.avatar.object
+    avatar.scale.setScalar(1); avatar.tag.position.y = 5; dress(m.avatar.object); avatar.add(m.avatar.object); avatar.model = m.avatar.object
     if (m.avatar.clips.length) { const mixer = new THREE.AnimationMixer(m.avatar.scene); mixer.clipAction(m.avatar.clips[0]).play(); tickers.push((t, dt) => mixer.update(dt)) }
   }
-  if (m.prop) { inst.boxS.count = inst.boxW.count = 0; for (const p of pushables) if (p.isBox) { p.obj = m.prop.object.clone(true); scene.add(p.obj) } }
+  if (m.prop) { inst.boxS.count = inst.boxW.count = 0; dress(m.prop.object); for (const p of pushables) if (p.isBox) { p.obj = m.prop.object.clone(true); scene.add(p.obj) } }
 }
 function showCredits(list) {
   if (!list.length) return
@@ -857,7 +882,7 @@ async function fetchModels() {
     const manifest = await r.json()
     if (!['car', 'avatar', 'prop'].some((k) => manifest[k]?.file)) return { credits: [] }
     const { loadModels } = await import('./models.js')
-    return await loadModels(manifest)
+    return await loadModels(manifest, { skip: lowEnd ? ['car'] : [], tune: isMobile ? { car: { minPart: 0.09 } } : {} })
   } catch (_) { return { credits: [] } }
 }
 async function boot() {

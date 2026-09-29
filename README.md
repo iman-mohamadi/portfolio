@@ -25,6 +25,10 @@ Controls: `WASD` / arrows drive · `Shift` boost · `Space` drift · `E` interac
 Drop `.glb` files into `public/models/` and list them in `public/models/models.json`
 (slots: `car`, `avatar`, `prop`). See `public/models/README.md`. Credit CC-BY models via the `credit` field.
 
+## 3D model credits
+
+- Car: *( FREE ) Lamborghini Terzo Millennio* by [SDC PERFORMANCE](https://sketchfab.com/3Duae) — [CC-BY-NC-4.0](https://creativecommons.org/licenses/by-nc/4.0/), via [Sketchfab](https://sketchfab.com/3d-models/free-lamborghini-terzo-millennio-7ad3dffa9d344c3c978eafcc220cb709). Non-commercial licence: swap it out (or get the author's permission) before using this site commercially.
+
 ## License
 
 MIT
