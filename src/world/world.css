@@ -201,3 +201,5 @@ kbd{font:400 .68rem var(--mono);padding:.15em .5em;border:1px solid var(--faint)
   .hud__btns{position:fixed;left:calc(var(--sal) + var(--pad));top:calc(52dvh + 6px);flex-direction:column;gap:.4rem;align-items:flex-start}
   .hud__btns button{padding:.4rem .7rem;font-size:.58rem;min-width:74px;text-align:left}
 }
+
+.start__top .start__links{display:flex;gap:1.4rem}
