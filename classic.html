@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Iman Mohammadi — Front-End Architect · WebGL</title>
+  <meta name="description" content="Iman Mohammadi — senior front-end architect and WebGL / 3D web specialist. Vue, Nuxt, Next.js, Three.js, GLSL, GSAP." />
+  <meta name="theme-color" content="#050505" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@200;300;400;500&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@300;400&display=swap" rel="stylesheet" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23050505'/%3E%3Cpath d='M8 24V8h3v16zM14 24V8h3.4l4.6 9V8h3v16h-3.4L17 15v9z' fill='%23ff2d8a'/%3E%3C/svg%3E" />
+</head>
+<body>
+  <canvas id="gl" aria-hidden="true"></canvas>
+  <div class="grain" aria-hidden="true"></div>
+  <div class="progress" aria-hidden="true"><i></i></div>
+  <div class="cursor" aria-hidden="true"><i class="dot"></i><i class="ring"><span></span></i></div>
+
+  <!-- Preloader -->
+  <div class="loader" id="loader">
+    <div class="loader__row mono"><span>Iman Mohammadi</span><span id="loadPct">000</span></div>
+    <div class="loader__word" aria-hidden="true"><span>Loading</span></div>
+    <div class="loader__bar"><i></i></div>
+  </div>
+
+  <header class="nav">
+    <a href="#top" class="nav__logo" data-magnetic>IM<em>.</em></a>
+    <nav class="nav__links mono">
+      <a href="#about" data-magnetic><b>01</b> About</a>
+      <a href="#work" data-magnetic><b>02</b> Work</a>
+      <a href="#experience" data-magnetic><b>03</b> Path</a>
+      <a href="#contact" data-magnetic><b>04</b> Contact</a>
+      <a href="/" data-magnetic class="nav__play">Enter 3D world ↗</a>
+      <a href="#" data-game-open data-magnetic class="nav__play">▶ Play</a>
+    </nav>
+    <div class="nav__status mono"><i class="pulse"></i> Available for 2026</div>
+  </header>
+
+  <main id="top">
+    <!-- HERO -->
+    <section class="hero" id="hero">
+      <div class="hero__meta mono reveal-up">
+        <span>Senior Front-End Architect</span>
+        <span>WebGL &amp; 3D Web Specialist</span>
+        <span>Tehran, IR — <em id="clock">00:00</em></span>
+      </div>
+      <h1 class="hero__title" aria-label="Iman Mohammadi">
+        <span class="line"><span class="split">Iman</span></span>
+        <span class="line"><span class="split serif">Mohammadi</span></span>
+      </h1>
+      <div class="hero__foot">
+        <p class="hero__lead reveal-up">
+          I build web systems that hold their shape at scale — component-driven architecture,
+          <em>honest motion</em>, and a rendering budget spent where the eye actually lands.
+        </p>
+        <button class="play mono reveal-up" data-game-open data-magnetic data-cursor="Play"><i></i>Play my story <em>— a tiny game</em></button>
+        <a href="#work" class="scroll mono reveal-up" data-magnetic>
+          <span class="scroll__ring"><svg viewBox="0 0 24 24"><path d="M12 4v16m0 0l-6-6m6 6l6-6" fill="none" stroke="currentColor" stroke-width="1.2"/></svg></span>
+          Scroll
+        </a>
+      </div>
+    </section>
+
+    <!-- MARQUEE -->
+    <section class="marquee" aria-hidden="true">
+      <div class="marquee__track">
+        <span>Vue 3</span><i>✦</i><span class="serif">Nuxt</span><i>✦</i><span>Three.js</span><i>✦</i><span class="serif">GLSL</span><i>✦</i><span>Next.js</span><i>✦</i><span class="serif">GSAP</span><i>✦</i><span>TypeScript</span><i>✦</i><span class="serif">WebGL</span><i>✦</i>
+        <span>Vue 3</span><i>✦</i><span class="serif">Nuxt</span><i>✦</i><span>Three.js</span><i>✦</i><span class="serif">GLSL</span><i>✦</i><span>Next.js</span><i>✦</i><span class="serif">GSAP</span><i>✦</i><span>TypeScript</span><i>✦</i><span class="serif">WebGL</span><i>✦</i>
+      </div>
+    </section>
+
+    <!-- ABOUT -->
+    <section class="about" id="about">
+      <div class="label mono"><b>01</b> — Summary</div>
+      <p class="about__text" id="aboutText">
+        Senior front-end and full-stack developer with over nine years of experience architecting, building and shipping high-performance, high-traffic web systems. Creator of Raya UI — an open-source design system — and builder of interactive Three.js and WebGL applications that keep 60fps on integrated GPUs.
+      </p>
+      <div class="stats">
+        <div class="stat"><b data-count="9" data-suffix="+">0</b><span class="mono">Years experience</span></div>
+        <div class="stat"><b data-count="93">0</b><span class="mono">Systems shipped</span></div>
+        <div class="stat"><b data-count="4">0</b><span class="mono">Continents served</span></div>
+        <div class="stat"><b data-count="1.2" data-dec="1" data-suffix="M">0</b><span class="mono">Queries / sec routed</span></div>
+      </div>
+    </section>
+
+    <!-- SKILLS -->
+    <section class="skills">
+      <div class="label mono"><b>—</b> Technical expertise</div>
+      <div class="skills__grid">
+        <article class="skill"><h3>Vue / Nuxt</h3><p>Vue.js 3 · Nuxt 3 / Nitro · Pinia · VueUse · Raya UI · Inertia.js</p><span class="skill__n mono">01</span></article>
+        <article class="skill"><h3>React / Next</h3><p>Next.js App Router · React Server Components · TypeScript · Zustand / Redux</p><span class="skill__n mono">02</span></article>
+        <article class="skill skill--hot"><h3>3D &amp; Creative Web</h3><p>Three.js / R3F · WebGL · GLSL shaders · Parametric modeling · GSAP</p><span class="skill__n mono">03</span></article>
+        <article class="skill"><h3>Architecture</h3><p>Tailwind CSS · SSR / SSG · CI/CD · Performance budgets</p><span class="skill__n mono">04</span></article>
+        <article class="skill"><h3>Backend &amp; APIs</h3><p>Node.js · Python / FastAPI · GraphQL / Apollo · REST · Microservices</p><span class="skill__n mono">05</span></article>
+      </div>
+    </section>
+
+    <!-- WORK (pinned horizontal) -->
+    <section class="work" id="work">
+      <div class="work__pin">
+        <div class="work__head">
+          <div class="label mono"><b>02</b> — Selected work</div>
+          <h2 class="big">Things I've<br /><span class="serif">shipped</span></h2>
+          <p class="mono work__hint">Drag / scroll →</p>
+        </div>
+        <div class="work__track">
+          <a class="card" href="https://raya-ui.com" target="_blank" rel="noopener" data-tilt data-cursor="Visit">
+            <div class="card__viz viz-raya"><div class="tokens"></div></div>
+            <div class="card__meta mono"><span>01</span><span>Vue.js · Nuxt · Tailwind</span></div>
+            <h3>Raya UI</h3><p>Open-source, tokenised design system built to stay coherent across 40 product teams.</p><span class="card__link mono">raya-ui.com ↗</span>
+          </a>
+          <a class="card" href="https://hotelyar.com" target="_blank" rel="noopener" data-tilt data-cursor="Visit">
+            <div class="card__viz viz-hotel"><div class="bars"></div><b class="mono">1.2M q/s</b></div>
+            <div class="card__meta mono"><span>02</span><span>Vue.js · Nuxt · SSR</span></div>
+            <h3>Hotelyar</h3><p>Enterprise reservation platform engineered to route 1.2M queries/sec at low TTFB.</p><span class="card__link mono">hotelyar.com ↗</span>
+          </a>
+          <a class="card" href="https://woodcoder.com" target="_blank" rel="noopener" data-tilt data-cursor="Visit">
+            <div class="card__viz viz-wood"><div class="cube"><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
+            <div class="card__meta mono"><span>03</span><span>Vue.js · Three.js · WebGL</span></div>
+            <h3>Woodcoder</h3><p>Live parametric 3D furniture configurator holding 60fps on integrated GPUs.</p><span class="card__link mono">woodcoder.com ↗</span>
+          </a>
+          <a class="card" href="https://rizo.top" target="_blank" rel="noopener" data-tilt data-cursor="Visit">
+            <div class="card__viz viz-rizo"><div class="tree"></div></div>
+            <div class="card__meta mono"><span>04</span><span>Next.js · Server Components</span></div>
+            <h3>Rizo</h3><p>Edge-deployed platform on React Server Components for maximum speed &amp; SEO.</p><span class="card__link mono">rizo.top ↗</span>
+          </a>
+          <a class="card" href="https://tricup.ir" target="_blank" rel="noopener" data-tilt data-cursor="Visit">
+            <div class="card__viz viz-tri"><div class="ball"></div><b class="serif">2026</b></div>
+            <div class="card__meta mono"><span>05</span><span>React.js · Tailwind CSS</span></div>
+            <h3>Tricup <small>World Cup 2026</small></h3><p>Live coverage hub with an interactive match prediction &amp; scoring system.</p><span class="card__link mono">tricup.ir ↗</span>
+          </a>
+          <a class="card" href="https://tinyhub.ir" target="_blank" rel="noopener" data-tilt data-cursor="Visit">
+            <div class="card__viz viz-tiny"><pre class="mono" id="jsonType"></pre></div>
+            <div class="card__meta mono"><span>06</span><span>Next.js · Node.js · Micro-tools</span></div>
+            <h3>TinyHub</h3><p>Developer productivity suite — JSON formatter, live syntax highlighter &amp; more.</p><span class="card__link mono">tinyhub.ir ↗</span>
+          </a>
+          <a class="card card--end" href="https://github.com/iman-mohamadi" target="_blank" rel="noopener" data-cursor="Open">
+            <h3 class="serif">More on<br />GitHub ↗</h3>
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- EXPERIENCE -->
+    <section class="exp" id="experience">
+      <div class="label mono"><b>03</b> — Professional experience</div>
+      <div class="exp__list">
+        <article class="job">
+          <div class="job__date mono">Jan 2024 — Present</div>
+          <div class="job__body">
+            <h3>Senior Frontend Developer</h3><h4 class="serif">Arnika Mehr Kish</h4>
+            <ul>
+              <li>Architecting and leading front-end development of high-traffic enterprise platforms including Hotelyar.com and Woodcoder.com.</li>
+              <li>Pioneering interactive 3D web experiences with WebGL and Three.js for parametric furniture configurators.</li>
+              <li>Converting complex Figma prototypes into fast, production-grade apps with Nuxt.js and Tailwind CSS.</li>
+              <li>Driving deep performance work — code splitting, SSR/SSG, asset caching — and GSAP-driven UI animation.</li>
+            </ul>
+          </div>
+        </article>
+        <article class="job">
+          <div class="job__date mono">Nov 2020 — Oct 2023</div>
+          <div class="job__body">
+            <h3>Frontend Web Developer</h3><h4 class="serif">Dewzilla</h4>
+            <ul>
+              <li>Built, scaled and maintained responsive enterprise web applications across the Vue.js and Nuxt.js ecosystem.</li>
+              <li>Engineered complex state management with Pinia and integrated backend microservices via RESTful APIs.</li>
+              <li>Developed a scalable custom UI component system with Tailwind CSS and Vuetify.</li>
+            </ul>
+          </div>
+        </article>
+        <article class="job">
+          <div class="job__date mono">May 2017 — Jan 2020</div>
+          <div class="job__body">
+            <h3>Frontend Developer</h3><h4 class="serif">GSI Telecom</h4>
+            <ul>
+              <li>Built cross-browser compatible UIs for enterprise telecom management platforms using Vue.js and Bootstrap.</li>
+              <li>Modernized legacy HTML/CSS into current structures, materially improving load speed and accessibility.</li>
+            </ul>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <!-- CONTACT -->
+    <section class="contact" id="contact">
+      <div class="label mono"><b>04</b> — Contact</div>
+      <h2 class="contact__title">
+        <span class="line"><span class="split">Let's build</span></span>
+        <span class="line"><span class="split serif">something</span></span>
+        <span class="line"><span class="split">that moves.</span></span>
+      </h2>
+      <a class="contact__mail" href="mailto:im.enzo.021@gmail.com" data-magnetic data-cursor="Mail">im.enzo.021@gmail.com</a>
+      <div class="contact__links mono">
+        <a href="https://github.com/iman-mohamadi" target="_blank" rel="noopener" data-magnetic>GitHub ↗</a>
+        <a href="https://t.me/iEnzO" target="_blank" rel="noopener" data-magnetic>Telegram ↗</a>
+        <a href="https://instagram.com/im_mhmdi" target="_blank" rel="noopener" data-magnetic>Instagram ↗</a>
+        <a href="tel:+989384249894" data-magnetic>+98 938 424 9894</a>
+      </div>
+      <footer class="foot mono"><span>© 2026 Iman Mohammadi</span><span>Built with Vite · Three.js · GSAP · Lenis</span><a href="#top" data-magnetic>Back to top ↑</a></footer>
+    </section>
+  </main>
+
+
+  <!-- Game -->
+  <div class="game" id="game" aria-hidden="true" role="dialog" aria-label="Run through Iman — a small game that introduces him">
+    <canvas id="gameCanvas"></canvas>
+    <div class="game__hud mono">
+      <span>Run Through Iman</span>
+      <span>Orbs <b data-orbs>0</b></span>
+      <span class="game__lives" data-lives>♥♥♥</span>
+      <button data-game-close data-cursor="Close">Esc ✕</button>
+    </div>
+    <div class="game__bar"><i></i></div>
+    <div class="game__card" aria-live="polite"></div>
+    <div class="game__intro is-on">
+      <h2>Run through<br /><span class="serif">my story</span></h2>
+      <p>Jump the bugs, grab the tech orbs, and pass each checkpoint to meet the person behind the portfolio.</p>
+      <p class="mono">Space / ↑ / tap to jump · double-jump enabled</p>
+      <span class="mono game__go">Press to start</span>
+    </div>
+    <div class="game__end">
+      <span class="mono">Finish line ✦ <em data-final></em></span>
+      <h2>Let's build<br /><span class="serif">something that moves.</span></h2>
+      <a class="game__mail" href="mailto:im.enzo.021@gmail.com">im.enzo.021@gmail.com</a>
+      <div class="game__btns mono">
+        <button data-game-replay>↻ Run again</button>
+        <button data-game-contact>Contact section ↓</button>
+        <a href="https://github.com/iman-mohamadi" target="_blank" rel="noopener">GitHub ↗</a>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

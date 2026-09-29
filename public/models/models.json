@@ -1,0 +1,6 @@
+{
+  "_help": "Drop .glb files in this folder and list them here. Slots: car, avatar, prop. Remove the leading underscore-free example below to activate. size = target size in world units (car: length, avatar: height, prop: width). rotY = extra rotation in degrees so the model's front faces -Z. Credits are shown in the site's Credits list (required for CC-BY Sketchfab models).",
+  "_example": {
+    "car": { "file": "car.glb", "size": 4.4, "rotY": 0, "credit": { "title": "Model name", "author": "Author", "url": "https://sketchfab.com/3d-models/...", "license": "CC-BY-4.0" } }
+  }
+}
