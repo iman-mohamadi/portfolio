@@ -5,6 +5,9 @@ A portfolio that is a **3D world**. Drive a car around a Three.js scene: each zo
 
 - **World** — `index.html` + `src/world/` (Three.js, custom GLSL ground, bloom, arcade car physics, minimap, WebAudio synth)
 - **Classic version** — `classic.html` (Vite, GSAP, Lenis, WebGL hero) for a regular scrolling site
+- **Auto tour** — press `T` (or tap *Auto tour*): the car drives itself through every zone, pausing at each for the info panel. Any input takes back control
+- **Look** — shader sky (aurora, nebula, ringed planet), lit instanced skyline, hologram Iman, live-animated project boards, neon light trails, boost pads + energy meter
+- **Performance** — instanced props/orbs (~95 draw calls), GPU-animated particles, dynamic resolution scaling that adapts to the display's refresh rate, lazy-loaded model pipeline
 - **Mobile** — floating joystick, boost / drift / interact buttons, safe-area aware layouts, adaptive quality
 
 ## Run

@@ -27,10 +27,8 @@ function fit(scene, { size, axis, rotY = 0 }) {
 }
 
 /** Reads /models/models.json and loads every slot that is configured. Never throws. */
-export async function loadModels(onProgress = () => {}) {
+export async function loadModels(manifest = {}, onProgress = () => {}) {
   const result = { credits: [] }
-  let manifest = {}
-  try { const r = await fetch('/models/models.json', { cache: 'no-cache' }); if (r.ok && (r.headers.get('content-type') || '').includes('json')) manifest = await r.json() } catch (_) { /* no manifest */ }
   const slots = Object.keys(DEFAULTS).filter((k) => manifest[k]?.file)
   let done = 0
   await Promise.all(slots.map(async (k) => {

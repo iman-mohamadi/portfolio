@@ -57,7 +57,7 @@ export const ZONES = [
     html: `<span class="tag mono">01 — Summary</span><h3>Nine years of shipping.</h3><p>Senior front-end and full-stack developer architecting high-performance, high-traffic web systems. Creator of <b>Raya UI</b> — an open-source design system — and builder of interactive Three.js / WebGL apps that hold their shape at scale.</p><div class="stats">${STATS.map(([a, b]) => `<div><b>${a}</b><span class="mono">${b}</span></div>`).join('')}</div>`,
   },
   {
-    id: 'skills', kind: 'skills', name: 'Skills', nav: 'Skills', pos: [34, -12], r: 12, spawn: [28, -6], color: 0x7a5cff,
+    id: 'skills', kind: 'skills', name: 'Skills', nav: 'Skills', pos: [34, -12], r: 12, spawn: [27, -4], color: 0x7a5cff,
     html: `<span class="tag mono">— Technical expertise</span><h3>The toolbox.</h3><ul class="skills">${SKILLS.map((s) => `<li><b>${s.g}</b><span>${s.t}</span></li>`).join('')}</ul>`,
   },
   { id: 'work', kind: 'work', name: 'Work', nav: 'Work', pos: [C[0], C[1] + 6], r: 3, spawn: [0, -20], color: 0xff2d8a, silent: true },
