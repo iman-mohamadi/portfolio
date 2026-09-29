@@ -5,8 +5,8 @@ export const ORB_NAMES = ['Vue 3', 'Nuxt', 'Next.js', 'React', 'Three.js', 'GLSL
 export const DIALOGUE = [
   "Hey — I'm Iman Mohammadi. Welcome to my world.",
   "By day I'm a senior front-end architect: Vue, Nuxt, Next.js and a lot of WebGL. Nine-plus years, 93 systems shipped, four continents served.",
-  'This whole site is a live Three.js scene. Drive around — About is to the west, Skills to the east, my Work arc lies ahead.',
-  'South, along the timeline, is my career — and the contact portal waits at the very end. Collect the orbs on the way. Have fun!',
+  'This whole site is a live Three.js city. Drive around — About is north-west, Skills north-east, my Work lines the avenue to the south.',
+  'East along the boulevard is my career, and the contact harbour waits far south-east. Collect the orbs, jump the ramps, race the rivals. Have fun!',
 ]
 
 export const PROJECTS = [
@@ -34,40 +34,37 @@ export const SKILLS = [
 
 export const STATS = [['9+', 'years experience'], ['93', 'systems shipped'], ['4', 'continents served'], ['1.2M', 'queries / sec routed']]
 
-const R = 24, C = [0, -40]
+/** Gallery Avenue: the south road (x = 0). Boards stand on alternate sides, facing the road. */
+export const AVENUE = { z0: 58, dz: 26 }
+export const GATES = [72, 120, 168] // career gates span the east boulevard (z = 0)
 const projZones = PROJECTS.map((p, i) => {
-  const a = (200 + (140 / 5) * i) * Math.PI / 180
-  const bx = C[0] + Math.cos(a) * R, bz = C[1] + Math.sin(a) * R
-  return { ...p, board: [bx, bz], pos: [C[0] + Math.cos(a) * (R - 6.5), C[1] + Math.sin(a) * (R - 6.5)] }
+  const z = AVENUE.z0 + i * AVENUE.dz, side = i % 2 ? 1 : -1
+  return { ...p, board: [side * 10.5, z], face: side > 0 ? -Math.PI / 2 : Math.PI / 2, pos: [0, z] }
 })
 
-export const ARC = { c: C, r: R }
-export const gateX = [-36, 0, 36]
-export const GATE_Z = 34
-
 const proj = (p) => ({
-  id: p.id, kind: 'project', name: p.name, nav: null, pos: p.pos, r: 8, url: p.url,
+  id: p.id, kind: 'project', name: p.name, nav: null, pos: p.pos, r: 11, url: p.url,
   html: `<span class="tag mono">${p.n} — Selected work · ${p.role}</span><h3>${p.name}</h3><p class="chips">${p.chips.map((t) => `<i class="mono">${t}</i>`).join('')}</p><p>${p.text}</p><ul class="pts">${p.points.map((t) => `<li>${t}</li>`).join('')}</ul><a class="btn mono" data-ev="project_visit" href="${p.url}" target="_blank" rel="noopener">${p.host} ↗ <kbd>E</kbd></a>`,
 })
 
 export const ZONES = [
-  { id: 'home', kind: 'home', name: 'Welcome', nav: 'Home', pos: [0, -2], r: 11, spawn: [0, 6], color: 0xff2d8a },
+  { id: 'home', kind: 'home', name: 'Welcome', nav: 'Home', pos: [0, 0], r: 30, spawn: [0, 28], color: 0xff2d8a },
   {
-    id: 'about', kind: 'about', name: 'About', nav: 'About', pos: [-34, -12], r: 11, spawn: [-28, -6], color: 0xff2d8a,
+    id: 'about', kind: 'about', name: 'About', nav: 'About', pos: [-120, -120], r: 24, spawn: [-99, -120], color: 0xff2d8a,
     html: `<span class="tag mono">01 — Summary</span><h3>Nine years of shipping.</h3><p>Senior front-end and full-stack developer architecting high-performance, high-traffic web systems. Creator of <b>Raya UI</b> — an open-source design system — and builder of interactive Three.js / WebGL apps that hold their shape at scale.</p><div class="stats">${STATS.map(([a, b]) => `<div><b>${a}</b><span class="mono">${b}</span></div>`).join('')}</div>`,
   },
   {
-    id: 'skills', kind: 'skills', name: 'Skills', nav: 'Skills', pos: [34, -12], r: 12, spawn: [27, -4], color: 0x7a5cff,
+    id: 'skills', kind: 'skills', name: 'Skills', nav: 'Skills', pos: [120, -120], r: 24, spawn: [99, -120], color: 0x7a5cff,
     html: `<span class="tag mono">— Technical expertise</span><h3>The toolbox.</h3><ul class="skills">${SKILLS.map((s) => `<li><b>${s.g}</b><span>${s.t}</span></li>`).join('')}</ul>`,
   },
-  { id: 'work', kind: 'work', name: 'Work', nav: 'Work', pos: [C[0], C[1] + 6], r: 3, spawn: [0, -20], color: 0xff2d8a, silent: true },
+  { id: 'work', kind: 'work', name: 'Work', nav: 'Work', pos: [0, 44], r: 3, spawn: [0, 40], color: 0xff2d8a, silent: true },
   ...projZones.map(proj),
   ...JOBS.map((j, i) => ({
-    id: j.id, kind: 'job', name: j.co, nav: i === 0 ? 'Path' : null, pos: [gateX[i], GATE_Z], r: 9, spawn: [gateX[i], GATE_Z - 6], color: 0x7a5cff,
+    id: j.id, kind: 'job', name: j.co, nav: i === 0 ? 'Path' : null, pos: [GATES[i], 0], r: 15, spawn: [GATES[i] - 22, 0], color: 0x7a5cff,
     html: `<span class="tag mono">${j.date}</span><h3>${j.role}</h3><h4>${j.co}</h4><ul class="pts">${j.pts.map((p) => `<li>${p}</li>`).join('')}</ul>`,
   })),
   {
-    id: 'contact', kind: 'contact', name: 'Contact', nav: 'Contact', pos: [0, 64], r: 13, spawn: [0, 55], color: 0xff2d8a,
+    id: 'contact', kind: 'contact', name: 'Contact', nav: 'Contact', pos: [120, 120], r: 24, spawn: [99, 120], color: 0xff2d8a,
     html: `<span class="tag mono">04 — Contact</span><h3>Let's build something that moves.</h3><p>Available for new roles in 2026 · Tehran, Iran · open to remote.</p><div class="cta"><a class="btn primary mono" data-ev="hire_email" href="mailto:im.enzo.021@gmail.com?subject=Let%27s%20talk%20%E2%80%94%20from%20your%20portfolio&body=Hi%20Iman%2C%0A%0A">Hire me — email ↗</a><a class="btn mono" data-ev="cv_download" href="/Iman-Mohammadi-CV.pdf" download>Download CV ↓</a></div><a class="big-link" data-ev="email" href="mailto:im.enzo.021@gmail.com">im.enzo.021@gmail.com</a><div class="links mono"><a data-ev="github" href="https://github.com/iman-mohamadi" target="_blank" rel="noopener">GitHub ↗</a><a data-ev="telegram" href="https://t.me/iEnzO" target="_blank" rel="noopener">Telegram ↗</a><a data-ev="instagram" href="https://instagram.com/im_mhmdi" target="_blank" rel="noopener">Instagram ↗</a><a data-ev="phone" href="tel:+989384249894">+98 938 424 9894</a></div>`,
   },
 ]

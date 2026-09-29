@@ -1,0 +1,7 @@
+{
+  "name": "portfolio-tools",
+  "private": true,
+  "type": "module",
+  "description": "Asset pipeline (not shipped): merges Kenney CC0 kits into compressed GLBs. Run: cd tools && npm i && KENNEY_DIR=/path/to/unzipped/packs node build-kits.mjs",
+  "dependencies": { "@gltf-transform/core": "^4", "@gltf-transform/extensions": "^4", "@gltf-transform/functions": "^4", "meshoptimizer": "^0.22" }
+}

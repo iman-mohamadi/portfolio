@@ -4,14 +4,16 @@ import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js'
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js'
-import { createSky, createSkyline } from './sky.js'
+import { createSky } from './sky.js'
+import { loadKits, dynamicInstances } from './kits.js'
+import { createCity, HALF, T, NAT, tileX, tileZ } from './city.js'
 import { createFxPass, Trail } from './fx.js'
 import { createAudio } from './audio.js'
 import { initAnalytics, track } from './analytics.js'
 import { $, clamp, lerp, damp, PINK, VIOLET, F_SANS, F_SERIF, F_MONO, canvasTex, basic, glow, dark, sprite, seeded } from './helpers.js'
 import { createStations } from './stations.js'
 import { buildTourRoute } from './tour.js'
-import { ZONES, PROJECTS, projZones, JOBS, SKILLS, STATS, DIALOGUE, ORB_NAMES, ARC, gateX, GATE_Z } from './content.js'
+import { ZONES, PROJECTS, projZones, JOBS, SKILLS, STATS, DIALOGUE, ORB_NAMES, GATES } from './content.js'
 
 /* ---- capability gate: no WebGL2 → friendly message; software renderer → low quality + notice */
 const qs = new URLSearchParams(location.search)
@@ -34,7 +36,6 @@ const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches
 let qMode = qs.get('quality') || ''
 if (!['auto', 'high', 'med', 'low'].includes(qMode)) { try { qMode = localStorage.getItem('im-quality') || 'auto' } catch (_) { qMode = 'auto' } }
 if (!['auto', 'high', 'med', 'low'].includes(qMode)) qMode = 'auto'
-const WORLD_R = 88
 
 /* ------------------------------------------------------------------ renderer */
 const canvas = $('#world')
@@ -51,9 +52,9 @@ renderer.toneMapping = THREE.ACESFilmicToneMapping
 renderer.toneMappingExposure = 1.05
 
 const scene = new THREE.Scene()
-scene.background = new THREE.Color(0x050508)
-scene.fog = new THREE.FogExp2(0x050508, 0.011)
-const camera = new THREE.PerspectiveCamera(58, innerWidth / innerHeight, 0.1, 700)
+scene.background = new THREE.Color(0x070a14)
+scene.fog = new THREE.FogExp2(0x0a0e1e, 0.0048)
+const camera = new THREE.PerspectiveCamera(58, innerWidth / innerHeight, 0.1, 1100)
 camera.position.set(0, 14, 34)
 
 const composer = new EffectComposer(renderer)
@@ -68,16 +69,17 @@ const fx = createFxPass(); fx.enabled = !reduceMotion && (qMode === 'auto' ? !lo
 renderer.info.autoReset = false
 const BASE_RATIO = pixelRatio
 
-scene.add(new THREE.HemisphereLight(0x7a6cff, 0x140812, 0.9))
-const moon = new THREE.DirectionalLight(0xc9c0ff, 1.1)
-moon.position.set(-30, 60, 20)
+const hemi = new THREE.HemisphereLight(0x6a78c8, 0x1a1626, 1.35); scene.add(hemi)
+const moon = new THREE.DirectionalLight(0xa9b8ff, 1.7)
+moon.position.set(-80, 140, 60)
 scene.add(moon)
 
 /* ------------------------------------------------------------------ helpers */
-const statics = []
+let grid = null // SpatialGrid from the city (circles + boxes)
 const camObs = [] // extra camera-only obstacles: billboard faces (statics only cover their poles)
 const tickers = []
-const addStatic = (x, z, r) => statics.push({ x, z, r })
+const addStatic = (x, z, r) => grid.addCircle(x, z, r, { tag: 'station' })
+const uniforms = { uNight: { value: 1 }, uTime: { value: 0 } }
 
 /* ------------------------------------------------------------------ fonts → build */
 async function loadFonts() {
@@ -90,50 +92,8 @@ async function loadFonts() {
   } catch (_) { /* fall back to system fonts */ }
 }
 
-/* ------------------------------------------------------------------ ground */
-const groundMat = new THREE.ShaderMaterial({
-  uniforms: { uTime: { value: 0 }, uCar: { value: new THREE.Vector3() }, uR: { value: WORLD_R } },
-  vertexShader: 'varying vec3 vW;void main(){vec4 w=modelMatrix*vec4(position,1.);vW=w.xyz;gl_Position=projectionMatrix*viewMatrix*w;}',
-  fragmentShader: /* glsl */ `
-  uniform float uTime,uR;uniform vec3 uCar;varying vec3 vW;
-  float grid(vec2 p,float s,float w){vec2 q=p/s;vec2 g=abs(fract(q-.5)-.5)/fwidth(q);return 1.-clamp(min(g.x,g.y)/w,0.,1.);}
-  void main(){
-    vec2 p=vW.xz;float d=length(p-uCar.xz);float r=length(p);
-    float g1=grid(p,4.,1.1),g2=grid(p,20.,1.4);
-    float near=exp(-d*.022);
-    float rip=exp(-d*.1)*(.5+.5*sin(d*1.4-uTime*3.2));
-    float wave=.5+.5*sin(r*.35-uTime*.6);
-    vec3 pink=vec3(1.,.18,.54),vio=vec3(.48,.36,1.);
-    vec3 col=mix(vio,pink,smoothstep(-60.,60.,p.x));
-    float fade=smoothstep(uR+8.,uR*.55,r);
-    vec3 c=vec3(.012,.008,.02);
-    c+=col*g1*(.03+.28*near)*fade;
-    c+=col*g2*(.14+.3*near)*fade;
-    c+=col*rip*near*.2;
-    c+=vio*.018*wave*fade;
-    gl_FragColor=vec4(c,1.);
-  }`,
-})
-const ground = new THREE.Mesh(new THREE.PlaneGeometry(420, 420), groundMat)
-ground.rotation.x = -Math.PI / 2
-scene.add(ground)
-
-// boundary ring + pillars
-{
-  const ring = new THREE.Mesh(new THREE.TorusGeometry(WORLD_R + 3, 0.14, 6, isMobile ? 120 : 220), glow(PINK, 3))
-  ring.rotation.x = Math.PI / 2; ring.position.y = 0.1; scene.add(ring)
-  const n = 80, pil = new THREE.InstancedMesh(new THREE.BoxGeometry(0.7, 1, 0.7), glow(VIOLET, 2.2), n)
-  const m = new THREE.Matrix4(), rnd = seeded(11)
-  for (let i = 0; i < n; i++) {
-    const a = (i / n) * Math.PI * 2, h = 3 + rnd() * 9
-    m.compose(new THREE.Vector3(Math.cos(a) * (WORLD_R + 3), h / 2, Math.sin(a) * (WORLD_R + 3)), new THREE.Quaternion(), new THREE.Vector3(1, h, 1))
-    pil.setMatrixAt(i, m)
-  }
-  scene.add(pil)
-}
-// sky, skyline, GPU-animated particles (no per-frame CPU work)
+// sky + GPU-animated particles (no per-frame CPU work)
 const sky = createSky(scene, { mobile: isMobile })
-const skyline = createSkyline(scene, { mobile: isMobile })
 const gpuTime = { value: 0 }, pxU = { value: pixelRatio }
 /** Rising / drifting point cloud animated entirely in the vertex shader. */
 function gpuPoints({ N, radius, height, color, size, speed = 0.4, opacity = 0.6, seed = 9, cylinder = false }) {
@@ -152,10 +112,10 @@ function gpuPoints({ N, radius, height, color, size, speed = 0.4, opacity = 0.6,
   pts.frustumCulled = false; scene.add(pts)
   return pts
 }
-gpuPoints({ N: isMobile ? 260 : 650, radius: 85, height: 14, color: 0xb9a8ff, size: 0.2, speed: 0.5 })
+const motes = gpuPoints({ N: isMobile ? 260 : 650, radius: 60, height: 16, color: 0xb9a8ff, size: 0.22, speed: 0.5 }) // follows the car
 
 /* ------------------------------------------------------------------ car */
-const car = { pos: new THREE.Vector3(0, 0, 6), ang: 0, vel: new THREE.Vector2(), radius: 1.25, rearOff: 1.3, track: 0.85, mw: null, aero: null, speed: 0, fwd: 0, turn: 0, drift: 0, boost: 0, energy: 1, padKick: 0, group: new THREE.Group(), body: new THREE.Group(), wheels: [] }
+const car = { pos: new THREE.Vector3(0, 0, 28), ang: 0, vel: new THREE.Vector2(), radius: 1.25, rearOff: 1.3, track: 0.85, mw: null, aero: null, speed: 0, fwd: 0, turn: 0, drift: 0, boost: 0, energy: 1, padKick: 0, group: new THREE.Group(), body: new THREE.Group(), wheels: [] }
 {
   const b = car.body
   const hull = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.45, 2.7), dark(0x14141c, 0.35, 0.7)); hull.position.y = 0.45; b.add(hull)
@@ -190,7 +150,7 @@ const pads = []
   const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, opacity: 0.9 })
   tickers.push((t) => { tex.offset.y = -(t * 0.9 % 1) })
   const seg = (fx, fz, tx, tz, ts) => { const dx = tx - fx, dz = tz - fz, L = Math.hypot(dx, dz); for (const k of ts) pads.push({ x: fx + dx * k, z: fz + dz * k, dx: dx / L, dz: dz / L, cd: 0 }) }
-  seg(0, 12, -30, -8, [0.3, 0.55]); seg(0, 12, 30, -8, [0.3, 0.55]); seg(0, -10, 0, -34, [0.55, 0.85]); seg(0, 12, 0, 32, [0.35, 0.65]); seg(0, 42, 0, 62, [0.25, 0.5])
+  seg(0, -40, 0, -180, [0.12, 0.4, 0.7]); seg(0, 40, 0, 52, [0.5]); seg(46, 0, 60, 0, [0.5]); seg(80, 0, 112, 0, [0.5]); seg(128, 0, 160, 0, [0.5]); seg(-40, 0, -180, 0, [0.15, 0.45, 0.75]); seg(-98, 96, 98, 96, [0.2, 0.5, 0.8]); seg(-96, -98, -98, -98, [0.5])
   for (const q of pads) {
     const m = new THREE.Mesh(new THREE.PlaneGeometry(4.2, 4.2), mat)
     m.rotation.x = -Math.PI / 2; m.rotation.z = Math.atan2(q.dx, q.dz) + Math.PI; m.position.set(q.x, 0.07, q.z); scene.add(m)
@@ -249,9 +209,9 @@ const avatar = new THREE.Group()
   const halo = new THREE.Mesh(new THREE.TorusGeometry(0.95, 0.05, 8, 40), glow(VIOLET, 3)); halo.rotation.x = Math.PI / 2; halo.position.y = 0.1; avatar.add(halo)
   avatar.halo = halo
   const tag = sprite('Iman', { size: 0.9, font: `italic 400 130px ${F_SERIF}` }); tag.position.y = 3.4; avatar.add(tag); avatar.tag = tag
-  avatar.scale.setScalar(1.5); avatar.position.set(0, 0, -6)
+  avatar.scale.setScalar(2.4); avatar.position.set(0, 0, 0)
   scene.add(avatar) // hologram: intentionally not solid
-  const stream = gpuPoints({ N: isMobile ? 60 : 130, radius: 1.3, height: 5.5, color: 0x62e6ff, size: 0.16, speed: 0.9, opacity: 0.95, seed: 4, cylinder: true }); stream.position.set(0, 0, -6)
+  const stream = gpuPoints({ N: isMobile ? 60 : 130, radius: 1.3, height: 5.5, color: 0x62e6ff, size: 0.16, speed: 0.9, opacity: 0.95, seed: 4, cylinder: true }); stream.scale.setScalar(2.4)
 }
 let avatarNear = 0
 tickers.push((t, dt) => {
@@ -265,47 +225,42 @@ tickers.push((t, dt) => {
 const stations = createStations({ scene, addStatic, tickers, camObs, isMobile })
 const boards = stations.boards
 
-/* ------------------------------------------------------------------ pushables + orbs (instanced: a handful of draw calls) */
-const pushables = []
+/* ------------------------------------------------------------------ props you can smash (real Kenney models) + collectible orbs */
 const dummy = new THREE.Object3D()
-const inst = {}
-{
-  const rnd = seeded(21), boxG = new THREE.BoxGeometry(1.2, 1.2, 1.2), sphG = new THREE.IcosahedronGeometry(0.75, 1)
-  const avoid = ZONES.map((z) => z.pos).concat(projZones.map((p) => p.board), [[0, 6]])
-  const specs = []
-  for (let i = 0; i < 26; i++) {
-    let x, z, tries = 0
-    do { const a = rnd() * 6.283, r = 10 + Math.sqrt(rnd()) * 70; x = Math.cos(a) * r; z = Math.sin(a) * r * 0.95 + 8 } while (tries++ < 40 && avoid.some((p) => Math.hypot(p[0] - x, p[1] - z) < 13))
-    specs.push({ x, z, isBox: rnd() < 0.55, col: rnd() < 0.5 ? PINK : VIOLET })
-  }
-  const nb = specs.filter((k) => k.isBox).length, ns = specs.length - nb
-  const solidMat = () => new THREE.MeshStandardMaterial({ color: 0x14141c, emissive: 0x5a2470, emissiveIntensity: 0.55, roughness: 0.3, metalness: 0.6, flatShading: true })
-  const mk = (geo, n, mat) => { const m = new THREE.InstancedMesh(geo, mat, n); m.frustumCulled = false; scene.add(m); return m }
-  inst.boxS = mk(boxG, nb, solidMat()); inst.boxW = mk(boxG, nb, new THREE.MeshBasicMaterial({ wireframe: true, toneMapped: false }))
-  inst.sphS = mk(sphG, ns, solidMat()); inst.sphW = mk(sphG, ns, new THREE.MeshBasicMaterial({ wireframe: true, toneMapped: false }))
-  const c = new THREE.Color(); let bi = 0, si = 0
-  for (const k of specs) {
-    const idx = k.isBox ? bi++ : si++, w = k.isBox ? inst.boxW : inst.sphW
-    w.setColorAt(idx, c.set(k.col))
-    pushables.push({ x: k.x, z: k.z, vx: 0, vz: 0, r: k.isBox ? 0.85 : 0.75, y: k.isBox ? 0.6 : 0.75, isBox: k.isBox, idx, rx: 0, rz: 0, obj: null })
-  }
-  inst.boxW.instanceColor.needsUpdate = true; inst.sphW.instanceColor.needsUpdate = true
-}
+const pushables = []
+const props = { groups: [] }
+const plainMats = new Map()
+const plainMat = (part) => { const src = part.material; if (!plainMats.has(src)) plainMats.set(src, new THREE.MeshStandardMaterial({ map: src.map, color: src.color, roughness: 0.7, metalness: 0.05 })); return plainMats.get(src) }
 const orbs = []
 const orbInfo = { got: 0 }
-const orbMesh = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(0.42, 1), new THREE.MeshBasicMaterial({ color: 0xa892ff, toneMapped: false }), 32)
-const haloMesh = new THREE.InstancedMesh(new THREE.TorusGeometry(0.7, 0.03, 6, 20), new THREE.MeshBasicMaterial({ color: PINK, toneMapped: false }), 32)
+const orbMesh = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(0.55, 1), new THREE.MeshBasicMaterial({ color: 0xa892ff, toneMapped: false }), 32)
+const haloMesh = new THREE.InstancedMesh(new THREE.TorusGeometry(0.9, 0.04, 6, 20), new THREE.MeshBasicMaterial({ color: PINK, toneMapped: false }), 32)
 orbMesh.frustumCulled = haloMesh.frustumCulled = false; scene.add(orbMesh, haloMesh)
-{
-  const rnd = seeded(77)
-  const avoid = ZONES.map((z) => z.pos)
-  for (let i = 0; i < 32; i++) {
-    let x, z, tries = 0
-    do { const a = rnd() * 6.283, r = 8 + Math.sqrt(rnd()) * 74; x = Math.cos(a) * r; z = Math.sin(a) * r * 0.92 + 10 } while (tries++ < 40 && (avoid.some((p) => Math.hypot(p[0] - x, p[1] - z) < 9)))
-    orbs.push({ x, z, alive: true, name: ORB_NAMES[i % ORB_NAMES.length], phase: rnd() * 6 })
+
+/** Random points on the road network, spread apart and away from the given spots. */
+function roadSpots(city, n, minSep, rnd, avoid = []) {
+  const tiles = [...city.roadTiles].map((s) => s.split(',').map(Number)), out = []
+  for (let tries = 0; tries < 4000 && out.length < n; tries++) {
+    const [i, j] = tiles[Math.floor(rnd() * tiles.length)], x = tileX(i) + (rnd() - 0.5) * 8, z = tileZ(j) + (rnd() - 0.5) * 8
+    if (Math.hypot(x, z) < 24 || out.some((p) => Math.hypot(p[0] - x, p[1] - z) < minSep) || avoid.some((p) => Math.hypot(p[0] - x, p[1] - z) < 14)) continue
+    out.push([x, z])
   }
+  return out
 }
-$('#orbTotal').textContent = orbs.length
+function spawnProps(city, kits) {
+  const rnd = seeded(21), avoid = ZONES.map((z) => z.spawn || z.pos)
+  const defs = [['car/box', 34, 1.7, 0.8], ['car/cone', 48, 1.7, 0.55]]
+  for (const [name, n, s, r] of defs) {
+    const model = kits.cars.get(name); if (!model) continue
+    const di = dynamicInstances(model, n, { material: plainMat }); di.use(n)
+    di.meshes.forEach((m) => scene.add(m)); props.groups.push(di)
+    roadSpots(city, n, 6, rnd, avoid).forEach(([x, z], k) => pushables.push({ x, z, vx: 0, vz: 0, r, y: 0, s, rx: 0, ry: rnd() * 6.28, rz: 0, di, idx: k }))
+  }
+  // orbs sit on the roads, spread across the whole map
+  const spots = roadSpots(city, 32, 42, seeded(77), avoid)
+  spots.forEach(([x, z], i) => orbs.push({ x, z, alive: true, name: ORB_NAMES[i % ORB_NAMES.length], phase: rnd() * 6 }))
+  $('#orbTotal').textContent = orbs.length
+}
 
 /* ------------------------------------------------------------------ input */
 initAnalytics()
@@ -403,38 +358,63 @@ function warp(id, keepTour = false) {
   const [sx, sz] = z.spawn || z.pos, [tx, tz] = z.pos
   car.pos.set(sx, 0, sz); car.vel.set(0, 0)
   car.ang = Math.atan2(-(tx - sx), -(tz - sz))
-  if (id === 'work') car.ang = 0
   camSnap = true
   const f = $('#flash'); f.classList.remove('is-on'); void f.offsetWidth; f.classList.add('is-on')
 }
 
-/* minimap */
+/* minimap: static city layer is painted once, markers on top */
 const mini = $('#mini'), mctx = mini.getContext('2d')
+const MAP_K = 0.83
+let mapCanvas = null
+function buildMinimap(city) {
+  const c = document.createElement('canvas'); c.width = c.height = 300; const x = c.getContext('2d'); x.translate(150, 150)
+  const col = { D: '#39406e', C: '#2c3254', T: '#3f2f66', S: '#28483a', P: '#20402c', H: '#4a3a2a', X: '#5e2a48', Z: '#284040', A: '#642a52', K: '#3a2f74', Q: '#642a52', W: '#283a5a', R: '#4a4a2a' }
+  for (const b of city.blocks) { x.fillStyle = col[b.type] || '#2a2f4a'; x.fillRect((b.x - 18) * MAP_K, (b.z - 18) * MAP_K, 36 * MAP_K, 36 * MAP_K) }
+  x.strokeStyle = 'rgba(255,255,255,.5)'; x.lineWidth = 3
+  for (let a = 0; a < 9; a++) { const p = tileX(a * 4) * MAP_K; x.beginPath(); x.moveTo(p, -HALF * MAP_K); x.lineTo(p, HALF * MAP_K); x.stroke(); x.beginPath(); x.moveTo(-HALF * MAP_K, p); x.lineTo(HALF * MAP_K, p); x.stroke() }
+  mapCanvas = c
+}
 function drawMini() {
-  const S = 300, c = S / 2, k = c / (WORLD_R + 6)
+  const S = 300, c = S / 2, k = MAP_K
   mctx.clearRect(0, 0, S, S)
-  mctx.strokeStyle = 'rgba(255,45,138,.5)'; mctx.lineWidth = 2; mctx.beginPath(); mctx.arc(c, c, c - 3, 0, 7); mctx.stroke()
-  for (const z of ZONES) { if (z.silent || z.kind === 'project') continue; mctx.fillStyle = z.id === active?.id ? '#fff' : z.kind === 'job' ? '#7a5cff' : '#ff2d8a'; mctx.beginPath(); mctx.arc(c + z.pos[0] * k, c + z.pos[1] * k, 5, 0, 7); mctx.fill() }
-  mctx.fillStyle = 'rgba(255,45,138,.7)'; for (const p of projZones) mctx.fillRect(c + p.pos[0] * k - 3, c + p.pos[1] * k - 3, 6, 6)
-  mctx.fillStyle = '#a892ff'; for (const o of orbs) if (o.alive) { mctx.beginPath(); mctx.arc(c + o.x * k, c + o.z * k, 2.4, 0, 7); mctx.fill() }
-  mctx.save(); mctx.translate(c + car.pos.x * k, c + car.pos.z * k); mctx.rotate(-car.ang); mctx.fillStyle = '#fff'; mctx.beginPath(); mctx.moveTo(0, -9); mctx.lineTo(6, 7); mctx.lineTo(-6, 7); mctx.closePath(); mctx.fill(); mctx.restore()
+  if (mapCanvas) mctx.drawImage(mapCanvas, 0, 0)
+  for (const z of ZONES) { if (z.silent || z.kind === 'project') continue; mctx.fillStyle = z.id === active?.id ? '#fff' : z.kind === 'job' ? '#7a5cff' : '#ff2d8a'; mctx.beginPath(); mctx.arc(c + z.pos[0] * k, c + z.pos[1] * k, 5.5, 0, 7); mctx.fill() }
+  mctx.fillStyle = 'rgba(255,45,138,.85)'; for (const p of projZones) mctx.fillRect(c + p.pos[0] * k - 3, c + p.pos[1] * k - 3, 6, 6)
+  mctx.fillStyle = '#a892ff'; for (const o of orbs) if (o.alive) { mctx.beginPath(); mctx.arc(c + o.x * k, c + o.z * k, 2.6, 0, 7); mctx.fill() }
+  mctx.save(); mctx.translate(c + car.pos.x * k, c + car.pos.z * k); mctx.rotate(-car.ang); mctx.fillStyle = '#fff'; mctx.strokeStyle = '#000'; mctx.lineWidth = 2; mctx.beginPath(); mctx.moveTo(0, -10); mctx.lineTo(7, 8); mctx.lineTo(-7, 8); mctx.closePath(); mctx.fill(); mctx.stroke(); mctx.restore()
+  mctx.strokeStyle = 'rgba(255,45,138,.5)'; mctx.lineWidth = 3; mctx.beginPath(); mctx.arc(c, c, c - 2, 0, 7); mctx.stroke()
 }
 
 /* ------------------------------------------------------------------ physics */
-const tmp = new THREE.Vector2()
+const cq = []
+/** Resolves a circle against nearby circles + axis-aligned boxes (buildings) and the square map bounds. */
 function collideCircle(x, z, r, out) {
   let hit = false
-  for (const s of statics) {
-    const dx = x - s.x, dz = z - s.z, m = r + s.r, d2 = dx * dx + dz * dz
-    if (d2 < m * m && d2 > 1e-6) { const d = Math.sqrt(d2), nx = dx / d, nz = dz / d; x = s.x + nx * m; z = s.z + nz * m; out.nx = nx; out.nz = nz; hit = true }
+  for (let pass = 0; pass < 2; pass++) {
+    grid.query(x, z, r + 1, cq)
+    for (const s of cq) {
+      if (s.kind === 'c') {
+        const dx = x - s.x, dz = z - s.z, m = r + s.r, d2 = dx * dx + dz * dz
+        if (d2 < m * m && d2 > 1e-6) { const d = Math.sqrt(d2), nx = dx / d, nz = dz / d; x = s.x + nx * m; z = s.z + nz * m; out.nx = nx; out.nz = nz; hit = true }
+      } else {
+        const px = clamp(x, s.x - s.hx, s.x + s.hx), pz = clamp(z, s.z - s.hz, s.z + s.hz), dx = x - px, dz = z - pz, d2 = dx * dx + dz * dz
+        if (d2 < r * r) {
+          let nx, nz
+          if (d2 > 1e-6) { const d = Math.sqrt(d2); nx = dx / d; nz = dz / d; x = px + nx * r; z = pz + nz * r }
+          else { const ex = s.hx - Math.abs(x - s.x), ez = s.hz - Math.abs(z - s.z); if (ex < ez) { nx = Math.sign(x - s.x) || 1; nz = 0; x = s.x + nx * (s.hx + r) } else { nx = 0; nz = Math.sign(z - s.z) || 1; z = s.z + nz * (s.hz + r) } }
+          out.nx = nx; out.nz = nz; hit = true
+        }
+      }
+    }
   }
-  const d = Math.hypot(x, z), lim = WORLD_R - r
-  if (d > lim) { const nx = -x / d, nz = -z / d; x = -nx * lim; z = -nz * lim; out.nx = nx; out.nz = nz; hit = true }
+  const lim = HALF - 3 - r
+  if (x > lim) { x = lim; out.nx = -1; out.nz = 0; hit = true } else if (x < -lim) { x = -lim; out.nx = 1; out.nz = 0; hit = true }
+  if (z > lim) { z = lim; out.nx = 0; out.nz = -1; hit = true } else if (z < -lim) { z = -lim; out.nx = 0; out.nz = 1; hit = true }
   out.x = x; out.z = z; return hit
 }
 const hitOut = { x: 0, z: 0, nx: 0, nz: 0 }
 let shake = 0
-const TOUR = buildTourRoute(projZones)
+let TOUR = [] // built from the road network once the city exists
 const tour = { on: false, i: 0, wait: 0, stuck: 0 }
 /* time trial: "speedrun the CV" — hit five checkpoints in order, fastest time is stored locally */
 const TRIAL = ['about', 'skills', 'rizo', 'dew', 'contact']
@@ -505,11 +485,14 @@ function autopilot(dt) {
   if (tour.wait > 0) { tour.wait -= dt; if (tour.wait <= 0) { tour.i++; paintTour() } return { f: car.speed > 1.5 ? -0.6 : 0, t: 0, boost: false, drift: false } }
   const dx = w.p[0] - car.pos.x, dz = w.p[1] - car.pos.z, d = Math.hypot(dx, dz)
   let err = Math.atan2(-dx, -dz) - car.ang; err = Math.atan2(Math.sin(err), Math.cos(err))
-  if (d < (w.dwell ? 3.4 : 5)) { if (w.dwell) tour.wait = w.dwell; else { tour.i++; paintTour() } tour.stuck = 0; return IDLE }
+  if (d < (w.dwell ? 4 : 6.5)) { if (w.dwell) tour.wait = w.dwell; else { tour.i++; paintTour() } tour.stuck = 0; return IDLE }
   tour.stuck = Math.abs(car.speed) < 0.6 ? tour.stuck + dt : 0
   if (tour.stuck > 3) { tour.i++; tour.stuck = 0; paintTour() }
-  const align = Math.max(0, Math.cos(err)), vmax = (w.dwell ? clamp(d * 1.5, 5, 18) : 18) * (0.35 + 0.65 * align)
-  return { f: car.speed < vmax ? 1 : car.speed > vmax + 3 ? -0.5 : 0.15, t: clamp(-err * 2.4, -1, 1), boost: d > 28 && align > 0.95 && car.energy > 0.6, drift: false }
+  // slow down for the corner after this waypoint
+  const nx = TOUR[tour.i + 1]; let corner = 1
+  if (nx && !w.dwell) { const a1 = Math.atan2(dx, dz), a2 = Math.atan2(nx.p[0] - w.p[0], nx.p[1] - w.p[1]), da = Math.abs(Math.atan2(Math.sin(a2 - a1), Math.cos(a2 - a1))); corner = 1 - clamp(da / 1.2, 0, 0.62) * clamp(1 - d / 34, 0, 1) }
+  const align = Math.max(0, Math.cos(err)), vmax = (w.dwell ? clamp(d * 1.5, 5, 22) : 22) * corner * (0.35 + 0.65 * align)
+  return { f: car.speed < vmax ? 1 : car.speed > vmax + 3 ? -0.5 : 0.15, t: clamp(-err * 2.4, -1, 1), boost: d > 70 && align > 0.97 && corner > 0.9 && car.energy > 0.6, drift: false }
 }
 function getInput(dt) {
   if (trial.on && trial.cd > 0) return IDLE
@@ -591,23 +574,21 @@ function updateCar(dt, t) {
 const pOut = { x: 0, z: 0, nx: 0, nz: 0 }
 function updatePushables(dt) {
   for (const p of pushables) {
-    p.vx *= Math.exp(-1.7 * dt); p.vz *= Math.exp(-1.7 * dt)
+    p.vx *= Math.exp(-1.5 * dt); p.vz *= Math.exp(-1.5 * dt)
     p.x += p.vx * dt; p.z += p.vz * dt
     const dx = p.x - car.pos.x, dz = p.z - car.pos.z, m = p.r + car.radius - 0.05, d = Math.hypot(dx, dz)
     if (d < m && d > 1e-4) {
       const nx = dx / d, nz = dz / d; p.x = car.pos.x + nx * m; p.z = car.pos.z + nz * m
       const rel = car.vel.x * nx + car.vel.y * nz
-      if (rel > 0) { p.vx += nx * rel * 1.15; p.vz += nz * rel * 1.15; car.vel.x -= nx * rel * 0.12; car.vel.y -= nz * rel * 0.12; if (rel > 6) sparks.burst(p.x, 0.8, p.z, PINK, 4, 4) }
+      if (rel > 0) { p.vx += nx * rel * 1.2; p.vz += nz * rel * 1.2; car.vel.x -= nx * rel * 0.08; car.vel.y -= nz * rel * 0.08; if (rel > 6) { sparks.burst(p.x, 0.8, p.z, 0xffd27a, 5, 4); if (!p.hit) { p.hit = 0.4; audio.thud(0.4) } } }
     }
+    if (p.hit) p.hit = Math.max(0, p.hit - dt)
     if (collideCircle(p.x, p.z, p.r, pOut)) { p.x = pOut.x; p.z = pOut.z; const vn = p.vx * pOut.nx + p.vz * pOut.nz; if (vn < 0) { p.vx -= pOut.nx * vn * 1.7; p.vz -= pOut.nz * vn * 1.7 } }
     if (Math.abs(p.vx) + Math.abs(p.vz) < 0.05) p.vx = p.vz = 0
-    p.rx += p.vz * dt / p.r; p.rz -= p.vx * dt / p.r
-    const solid = p.isBox ? inst.boxS : inst.sphS, wire = p.isBox ? inst.boxW : inst.sphW
-    if (p.obj) { p.obj.position.set(p.x, 0, p.z); p.obj.rotation.set(p.rx, 0, p.rz); continue }
-    dummy.position.set(p.x, p.y, p.z); dummy.rotation.set(p.rx, 0, p.rz); dummy.scale.setScalar(1); dummy.updateMatrix(); solid.setMatrixAt(p.idx, dummy.matrix)
-    dummy.scale.setScalar(1.02); dummy.updateMatrix(); wire.setMatrixAt(p.idx, dummy.matrix)
+    const sp = Math.hypot(p.vx, p.vz); p.ry += (p.vx * 0.05) * dt * 4; p.rx += p.vz * dt / (p.r * 2.2); p.rz -= p.vx * dt / (p.r * 2.2)
+    p.di.set(p.idx, p.x, p.y + Math.min(sp * 0.05, 0.6), p.z, p.ry, p.s, p.rx, p.rz)
   }
-  inst.boxS.instanceMatrix.needsUpdate = inst.boxW.instanceMatrix.needsUpdate = inst.sphS.instanceMatrix.needsUpdate = inst.sphW.instanceMatrix.needsUpdate = true
+  props.groups.forEach((g) => g.commit())
 }
 function updateOrbs(dt, t) {
   for (let i = 0; i < orbs.length; i++) {
@@ -635,26 +616,39 @@ function unlockSecret() {
 }
 
 /* ------------------------------------------------------------------ camera */
-const camHead = new THREE.Vector3()
-/** If a large obstacle (billboard, monolith, tower) sits between the car and the desired camera spot, pull the camera in front of it. */
+const camHead = new THREE.Vector3(), cq2 = []
+/** If a building / billboard / tower sits between the car and the desired camera spot, pull the camera in front of it. */
 function occlude(des) {
-  camHead.set(car.pos.x, 1.5, car.pos.z)
+  camHead.set(car.pos.x, 1.6, car.pos.z)
   const sx = des.x - camHead.x, sz = des.z - camHead.z, L = Math.hypot(sx, sz) || 1
   let best = 1
-  const test = (o) => {
+  grid.query((camHead.x + des.x) / 2, (camHead.z + des.z) / 2, L / 2 + 8, cq2)
+  const circle = (o) => {
     if (o.r < 1.2) return
     const t = clamp(((o.x - camHead.x) * sx + (o.z - camHead.z) * sz) / (L * L), 0, 1), d = Math.hypot(camHead.x + sx * t - o.x, camHead.z + sz * t - o.z)
     if (d < o.r + 0.5) { const tt = Math.max(0.1, t - (o.r + 0.9) / L); if (tt < best) best = tt }
   }
-  for (const o of camObs) test(o)
-  for (const o of statics) test(o)
-  if (best < 1) { des.x = camHead.x + sx * best; des.z = camHead.z + sz * best; des.y = lerp(camHead.y + 1.6, des.y, best) }
+  for (const o of cq2) {
+    if (o.kind === 'c') { circle(o); continue }
+    if (des.y > (o.h ?? 99)) continue
+    // segment vs expanded box (slab test in x/z)
+    const ex = o.hx + 0.9, ez = o.hz + 0.9; let t0 = 0, t1 = 1, ok = true
+    for (const [p0, d, e] of [[camHead.x - o.x, sx, ex], [camHead.z - o.z, sz, ez]]) {
+      if (Math.abs(d) < 1e-6) { if (Math.abs(p0) > e) { ok = false; break } } else { let a1 = (-e - p0) / d, a2 = (e - p0) / d; if (a1 > a2) [a1, a2] = [a2, a1]; t0 = Math.max(t0, a1); t1 = Math.min(t1, a2); if (t0 > t1) { ok = false; break } }
+    }
+    if (ok && t0 > 0.001 && t0 < best) best = Math.max(0.1, t0 - 0.03)
+  }
+  for (const o of camObs) circle(o)
+  if (best < 1) { des.x = camHead.x + sx * best; des.z = camHead.z + sz * best; des.y = lerp(camHead.y + 1.8, des.y, best) }
 }
 function avoidObstacles() {
   const c = camera.position
-  const push = (o, top) => { if (c.y > top) return; const dx = c.x - o.x, dz = c.z - o.z, m = o.r + 0.9, d2 = dx * dx + dz * dz; if (d2 < m * m) { const d = Math.sqrt(d2) || 0.001; c.x = o.x + (dx / d) * m; c.z = o.z + (dz / d) * m } }
-  for (const o of statics) push(o, 9)
-  for (const o of camObs) push(o, o.top)
+  grid.query(c.x, c.z, 6, cq2)
+  for (const o of cq2) {
+    if (o.kind === 'c') { if (c.y > 9) continue; const dx = c.x - o.x, dz = c.z - o.z, m = o.r + 0.9, d2 = dx * dx + dz * dz; if (d2 < m * m) { const d = Math.sqrt(d2) || 0.001; c.x = o.x + (dx / d) * m; c.z = o.z + (dz / d) * m } }
+    else if (c.y < (o.h ?? 99)) { const ex = o.hx + 0.9, ez = o.hz + 0.9, dx = c.x - o.x, dz = c.z - o.z; if (Math.abs(dx) < ex && Math.abs(dz) < ez) { if (ex - Math.abs(dx) < ez - Math.abs(dz)) c.x = o.x + Math.sign(dx || 1) * ex; else c.z = o.z + Math.sign(dz || 1) * ez } }
+  }
+  for (const o of camObs) { if (c.y > o.top) continue; const dx = c.x - o.x, dz = c.z - o.z, m = o.r + 0.9, d2 = dx * dx + dz * dz; if (d2 < m * m) { const d = Math.sqrt(d2) || 0.001; c.x = o.x + (dx / d) * m; c.z = o.z + (dz / d) * m } }
 }
 const camLook = new THREE.Vector3(), camDes = new THREE.Vector3(), tgt = new THREE.Vector3()
 let camSnap = true, menuAng = 0.6
@@ -715,8 +709,7 @@ function tick() {
   fpsAcc += dt; fpsN++
   if (fpsAcc > 0.5) { fpsShow = fpsN / fpsAcc; fpsEl.textContent = Math.round(fpsShow) + ' fps'; fpsAcc = 0; fpsN = 0 }
   renderer.info.reset(); pollPad(); updateDRS(dt)
-  gpuTime.value = t; sky.update(camera, t); skyline.update(t)
-  groundMat.uniforms.uTime.value = t; groundMat.uniforms.uCar.value.copy(car.pos)
+  gpuTime.value = t; uniforms.uTime.value = t; sky.update(camera, t); motes.position.set(car.pos.x, 0, car.pos.z)
   updateCar(dt, t)
   updatePushables(dt); updateOrbs(dt, t)
   for (const f of tickers) f(t, dt)
@@ -795,7 +788,7 @@ function neonEnv() {
   return tex
 }
 function applyModels(m) {
-  if (!(m.car || m.avatar || m.prop)) return
+  if (!(m.car || m.avatar)) return
   const env = neonEnv()
   const dress = (obj, k = 1) => obj.traverse((o) => { if (o.isMesh) for (const mm of [].concat(o.material)) { if (mm.isMeshStandardMaterial || mm.isMeshPhysicalMaterial) { mm.envMap = env; mm.envMapIntensity = k; mm.needsUpdate = true } } })
   if (m.car) {
@@ -815,7 +808,6 @@ function applyModels(m) {
     avatar.scale.setScalar(1); avatar.tag.position.y = 5; dress(m.avatar.object); avatar.add(m.avatar.object); avatar.model = m.avatar.object
     if (m.avatar.clips.length) { const mixer = new THREE.AnimationMixer(m.avatar.scene); mixer.clipAction(m.avatar.clips[0]).play(); tickers.push((t, dt) => mixer.update(dt)) }
   }
-  if (m.prop) { inst.boxS.count = inst.boxW.count = 0; dress(m.prop.object); for (const p of pushables) if (p.isBox) { p.obj = m.prop.object.clone(true); scene.add(p.obj) } }
 }
 function showCredits(list) {
   if (!list.length) return
@@ -837,7 +829,11 @@ async function boot() {
   const modelsP = fetchModels()
   await loadFonts(); setPct(35)
   await new Promise((r) => setTimeout(r, 30))
-  stations.buildAll(); setPct(90)
+  const kits = await loadKits(['city', 'cars', 'nature', 'racing']); setPct(60)
+  const city = createCity({ scene, kits, uniforms, mobile: isMobile }); grid = city.grid; setPct(70)
+  grid.addCircle(0, 0, 4.8, { tag: 'island' }) // the roundabout island under the hologram
+  spawnProps(city, kits); stations.buildAll(); TOUR = buildTourRoute(city, ZONES); buildMinimap(city); setPct(90)
+  if (import.meta.env.DEV) window.__city = city
   const models = await modelsP; applyModels(models); showCredits(models.credits); setPct(97)
   renderer.compile(scene, camera); composer.render(); setPct(100)
   ready = true

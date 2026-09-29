@@ -1,28 +1,30 @@
 import * as THREE from 'three'
 import { canvasTex, basic, glow, dark, sprite, PINK, VIOLET, F_SANS, F_SERIF, F_MONO } from './helpers.js'
-import { ZONES, STATS, SKILLS, JOBS, projZones, ARC, gateX, GATE_Z } from './content.js'
+import { ZONES, STATS, SKILLS, JOBS, projZones, GATES } from './content.js'
 
-/** Builds the six physical sections of the world (welcome sign, About, Skills, Work arc, Career path, Contact). */
+/** Builds the landmarks of the six zones inside the city: welcome gantry, About monolith, Skills crystals, Work boards, Career gates, Contact portal. */
 export function createStations({ scene, addStatic, tickers, camObs, isMobile }) {
   function buildSpawnSign() {
     const tex = canvasTex(2048, 700, (x, w, h) => {
+      x.fillStyle = 'rgba(6,6,10,.82)'; x.beginPath(); x.roundRect(0, 0, w, h, 60); x.fill(); x.strokeStyle = '#ff2d8a'; x.lineWidth = 8; x.stroke()
       x.textAlign = 'left'; x.textBaseline = 'alphabetic'
-      x.font = `200 300px ${F_SANS}`; x.fillStyle = '#f2efec'; x.shadowColor = '#ff2d8a'; x.shadowBlur = 14; x.fillText('Iman', 40, 300)
-      x.font = `italic 400 300px ${F_SERIF}`; const g = x.createLinearGradient(700, 0, 1900, 0); g.addColorStop(0, '#ffd0e4'); g.addColorStop(1, '#ff2d8a'); x.fillStyle = g; x.fillText('Mohammadi', 690, 300)
-      x.shadowBlur = 0; x.fillStyle = '#ff2d8a'; x.font = `300 46px ${F_MONO}`; x.fillText('SENIOR FRONT-END ARCHITECT  ·  WEBGL & 3D WEB SPECIALIST', 48, 420)
-      x.fillStyle = 'rgba(242,239,236,.6)'; x.font = `300 38px ${F_MONO}`; x.fillText('9+ YEARS  ·  VUE / NUXT  ·  NEXT.JS  ·  THREE.JS  ·  GLSL  ·  GSAP', 48, 500)
-      x.fillText('TEHRAN, IRAN  ·  AVAILABLE FOR NEW ROLES — 2026', 48, 560)
+      x.font = `200 300px ${F_SANS}`; x.fillStyle = '#f2efec'; x.shadowColor = '#ff2d8a'; x.shadowBlur = 14; x.fillText('Iman', 70, 300)
+      x.font = `italic 400 300px ${F_SERIF}`; const g = x.createLinearGradient(730, 0, 1900, 0); g.addColorStop(0, '#ffd0e4'); g.addColorStop(1, '#ff2d8a'); x.fillStyle = g; x.fillText('Mohammadi', 720, 300)
+      x.shadowBlur = 0; x.fillStyle = '#ff2d8a'; x.font = `300 46px ${F_MONO}`; x.fillText('SENIOR FRONT-END ARCHITECT  ·  WEBGL & 3D WEB SPECIALIST', 78, 420)
+      x.fillStyle = 'rgba(242,239,236,.6)'; x.font = `300 38px ${F_MONO}`; x.fillText('9+ YEARS  ·  VUE / NUXT  ·  NEXT.JS  ·  THREE.JS  ·  GLSL  ·  GSAP', 78, 500)
+      x.fillText('TEHRAN, IRAN  ·  AVAILABLE FOR NEW ROLES — 2026', 78, 560)
     })
-    const m = new THREE.Mesh(new THREE.PlaneGeometry(22, 7.5), basic(tex, { depthWrite: false })); m.position.set(0, 10.4, -17); scene.add(m)
-    for (const s of [-1, 1]) { const p = new THREE.Mesh(new THREE.BoxGeometry(0.4, 11, 0.4), glow(VIOLET, 2)); p.position.set(s * 11.3, 5.5, -17); scene.add(p); addStatic(s * 11.3, -17, 0.8) }
-    const bar = new THREE.Mesh(new THREE.BoxGeometry(22.8, 0.25, 0.4), glow(PINK, 3)); bar.position.set(0, 14.3, -17); scene.add(bar)
+    const Z = -28 // gantry across the north avenue, seen from the spawn roundabout
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(16.4, 5.6), basic(tex, { depthWrite: false })); m.position.set(0, 12.6, Z); scene.add(m)
+    for (const s of [-1, 1]) { const p = new THREE.Mesh(new THREE.BoxGeometry(0.6, 16, 0.6), glow(VIOLET, 2)); p.position.set(s * 8.6, 8, Z); scene.add(p); addStatic(s * 8.6, Z, 0.7) }
+    const bar = new THREE.Mesh(new THREE.BoxGeometry(18.2, 0.35, 0.5), glow(PINK, 3)); bar.position.set(0, 16, Z); scene.add(bar)
   }
 
   /* ------------------------------------------------------------------ About station */
   function buildAbout() {
-    const z = ZONES.find((k) => k.id === 'about'), [cx, cz] = z.pos
-    const g = new THREE.Group(); g.position.set(cx, 0, cz); scene.add(g)
-    const ring = new THREE.Mesh(new THREE.TorusGeometry(9, 0.12, 6, 90), glow(PINK, 3)); ring.rotation.x = Math.PI / 2; ring.position.y = 0.08; g.add(ring)
+    const z = ZONES.find((k) => k.id === 'about'), [cx, cz] = z.pos, S = 1.7
+    const g = new THREE.Group(); g.position.set(cx, 0, cz); g.scale.setScalar(S); scene.add(g)
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(9, 0.12, 6, 90), glow(PINK, 3)); ring.rotation.x = Math.PI / 2; ring.position.y = 0.1; g.add(ring)
     const slab = new THREE.Mesh(new THREE.BoxGeometry(6.2, 8.4, 0.7), dark(0x0c0c14, 0.2, 0.8)); slab.position.set(0, 4.4, 0); g.add(slab)
     const tex = canvasTex(1024, 1400, (x, w, h) => {
       x.fillStyle = '#08080d'; x.fillRect(0, 0, w, h); x.strokeStyle = '#ff2d8a'; x.lineWidth = 6; x.strokeRect(20, 20, w - 40, h - 40)
@@ -31,32 +33,34 @@ export function createStations({ scene, addStatic, tickers, camObs, isMobile }) 
       STATS.forEach(([a, b], i) => { const y = 520 + i * 200; x.fillStyle = '#f2efec'; x.font = `200 130px ${F_SANS}`; x.fillText(a, 70, y + 90); x.fillStyle = 'rgba(242,239,236,.55)'; x.font = `300 36px ${F_MONO}`; x.fillText(b.toUpperCase(), 430, y + 80); x.fillStyle = 'rgba(255,255,255,.12)'; x.fillRect(70, y + 130, w - 140, 2) })
     })
     const face = new THREE.Mesh(new THREE.PlaneGeometry(5.9, 8.1), basic(tex)); face.position.set(0, 4.4, 0.38); g.add(face)
-    g.lookAt(0, 0, 4)
-    const ico = new THREE.Mesh(new THREE.IcosahedronGeometry(1.7, 1), new THREE.MeshBasicMaterial({ color: PINK, wireframe: true, toneMapped: false })); ico.position.set(cx, 11.5, cz); scene.add(ico)
-    tickers.push((t) => { ico.rotation.y = t * 0.5; ico.rotation.x = t * 0.3; ico.position.y = 11.5 + Math.sin(t * 1.5) * 0.3 })
-    const s = sprite('ABOUT', { size: 2.2 }); s.position.set(cx, 15.6, cz); scene.add(s)
-    addStatic(cx, cz, 3.4)
+    const face2 = face.clone(); face2.position.z = -0.38; face2.rotation.y = Math.PI; g.add(face2)
+    g.lookAt(z.spawn[0], 0, z.spawn[1]) // the front faces the road you arrive on
+    const ico = new THREE.Mesh(new THREE.IcosahedronGeometry(1.7 * S, 1), new THREE.MeshBasicMaterial({ color: PINK, wireframe: true, toneMapped: false })); ico.position.set(cx, 20, cz); scene.add(ico)
+    tickers.push((t) => { ico.rotation.y = t * 0.5; ico.rotation.x = t * 0.3; ico.position.y = 20 + Math.sin(t * 1.5) * 0.4 })
+    const s = sprite('ABOUT', { size: 3.4 }); s.position.set(cx, 26, cz); scene.add(s)
+    addStatic(cx, cz, 5.2)
   }
 
   /* ------------------------------------------------------------------ Skills station */
   const pylons = []
   function buildSkills() {
-    const z = ZONES.find((k) => k.id === 'skills'), [cx, cz] = z.pos
-    const ring = new THREE.Mesh(new THREE.TorusGeometry(10, 0.12, 6, 90), glow(VIOLET, 3)); ring.rotation.x = Math.PI / 2; ring.position.set(cx, 0.08, cz); scene.add(ring)
+    const z = ZONES.find((k) => k.id === 'skills'), [cx, cz] = z.pos, S = 1.45
+    const g = new THREE.Group(); g.position.set(cx, 0, cz); g.scale.setScalar(S); scene.add(g)
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(10, 0.12, 6, 90), glow(VIOLET, 3)); ring.rotation.x = Math.PI / 2; ring.position.y = 0.1; g.add(ring)
     SKILLS.forEach((s, i) => {
-      const a = (i / SKILLS.length) * Math.PI * 2 - Math.PI / 2, x = cx + Math.cos(a) * 6.8, zz = cz + Math.sin(a) * 6.8
+      const a = (i / SKILLS.length) * Math.PI * 2 - Math.PI / 2, x = Math.cos(a) * 6.8, zz = Math.sin(a) * 6.8
       const col = i % 2 ? VIOLET : PINK
-      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.24, 2.2, 8), dark()); pole.position.set(x, 1.1, zz); scene.add(pole)
-      const gem = new THREE.Mesh(new THREE.OctahedronGeometry(1.15, 0), glow(col, 2.6)); gem.scale.y = 1.5; scene.add(gem)
-      const wire = new THREE.Mesh(new THREE.OctahedronGeometry(1.6, 0), new THREE.MeshBasicMaterial({ color: col, wireframe: true, toneMapped: false, transparent: true, opacity: 0.5 })); scene.add(wire)
-      const lab = sprite(s.g, { size: 1.2, font: `300 96px ${F_SANS}`, accent: i % 2 ? '#7a5cff' : '#ff2d8a' }); lab.position.set(x, 6.2, zz); scene.add(lab)
-      addStatic(x, zz, 0.9)
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.24, 2.2, 8), dark()); pole.position.set(x, 1.1, zz); g.add(pole)
+      const gem = new THREE.Mesh(new THREE.OctahedronGeometry(1.15, 0), glow(col, 2.6)); gem.scale.y = 1.5; g.add(gem)
+      const wire = new THREE.Mesh(new THREE.OctahedronGeometry(1.6, 0), new THREE.MeshBasicMaterial({ color: col, wireframe: true, toneMapped: false, transparent: true, opacity: 0.5 })); g.add(wire)
+      const lab = sprite(s.g, { size: 1.2, font: `300 96px ${F_SANS}`, accent: i % 2 ? '#7a5cff' : '#ff2d8a' }); lab.position.set(x, 6.2, zz); g.add(lab)
+      addStatic(cx + x * S, cz + zz * S, 0.9 * S)
       tickers.push((t) => { const y = 3.6 + Math.sin(t * 1.4 + i) * 0.35; gem.position.set(x, y, zz); wire.position.set(x, y, zz); gem.rotation.y = t * 0.9 + i; wire.rotation.y = -t * 0.5; wire.rotation.x = t * 0.3 })
       pylons.push({ gem })
     })
-    const knot = new THREE.Mesh(new THREE.TorusKnotGeometry(1.1, 0.28, 120, 12), glow(0xff8fc0, 0.9)); knot.position.set(cx, 3.5, cz); scene.add(knot)
+    const knot = new THREE.Mesh(new THREE.TorusKnotGeometry(1.1, 0.28, 120, 12), glow(0xff8fc0, 0.9)); knot.position.set(0, 3.5, 0); g.add(knot)
     tickers.push((t) => { knot.rotation.x = t * 0.6; knot.rotation.y = t * 0.4 })
-    const s = sprite('SKILLS', { size: 2.2, accent: '#7a5cff' }); s.position.set(cx, 10.5, cz); scene.add(s)
+    const s = sprite('SKILLS', { size: 3, accent: '#7a5cff' }); s.position.set(0, 11.5, 0); g.add(s)
   }
 
   /* ------------------------------------------------------------------ Work arc */
@@ -126,20 +130,17 @@ export function createStations({ scene, addStatic, tickers, camObs, isMobile }) 
     return { tex, render, last: -1 }
   }
   function buildWork() {
-    const [cx, cz] = ARC.c
-    const ring = new THREE.Mesh(new THREE.TorusGeometry(ARC.r - 4, 0.1, 6, 120), glow(PINK, 2.5)); ring.rotation.x = Math.PI / 2; ring.position.set(cx, 0.08, cz); scene.add(ring)
-    const ring2 = new THREE.Mesh(new THREE.TorusGeometry(ARC.r - 15, 0.06, 6, 100), glow(VIOLET, 2)); ring2.rotation.x = Math.PI / 2; ring2.position.set(cx, 0.08, cz); scene.add(ring2)
-    const title = sprite('SELECTED WORK', { size: 3 }); title.position.set(cx, 12, cz - 6); scene.add(title)
-    const sub = sprite('drive up to a board — press E to open the site', { size: 0.8, font: `300 64px ${F_MONO}`, color: 'rgba(242,239,236,.7)' }); sub.position.set(cx, 9.4, cz - 6); scene.add(sub)
+    const title = sprite('SELECTED WORK', { size: 3.6 }); title.position.set(0, 16, 46); scene.add(title)
+    const sub = sprite('drive down the avenue — press E at a board to open the site', { size: 0.95, font: `300 64px ${F_MONO}`, color: 'rgba(242,239,236,.75)' }); sub.position.set(0, 12.2, 46); scene.add(sub)
     projZones.forEach((p, i) => {
-      const g = new THREE.Group(); g.position.set(p.board[0], 0, p.board[1]); scene.add(g)
-      const pole = new THREE.Mesh(new THREE.BoxGeometry(0.5, 4, 0.5), dark()); pole.position.y = 2; g.add(pole)
-      const frame = new THREE.Mesh(new THREE.BoxGeometry(9.5, 6.1, 0.3), glow(i % 2 ? VIOLET : PINK, 1.6)); frame.position.y = 6.8; g.add(frame)
+      const [bx, bz] = p.board, S = 1.12
+      const g = new THREE.Group(); g.position.set(bx, 0, bz); g.rotation.y = p.face; g.scale.setScalar(S); scene.add(g)
+      const pole = new THREE.Mesh(new THREE.BoxGeometry(0.5, 4.4, 0.5), dark()); pole.position.y = 2.2; g.add(pole)
+      const frame = new THREE.Mesh(new THREE.BoxGeometry(9.5, 6.1, 0.3), glow(i % 2 ? VIOLET : PINK, 1.6)); frame.position.y = 7; g.add(frame)
       const live = makeBoard(p)
-      const screen = new THREE.Mesh(new THREE.PlaneGeometry(9.1, 5.7), basic(live.tex, { transparent: false, color: new THREE.Color().setScalar(0.62) })); screen.position.set(0, 6.8, 0.17); g.add(screen)
-      g.lookAt(cx, 0, cz)
-      addStatic(p.board[0], p.board[1], 1)
-      { const tx = -(cz - p.board[1]), tz = cx - p.board[0], L = Math.hypot(tx, tz); for (const k of [-3.6, 0, 3.6]) camObs.push({ x: p.board[0] + (tx / L) * k, z: p.board[1] + (tz / L) * k, r: 1.9, top: 10.5 }) }
+      const screen = new THREE.Mesh(new THREE.PlaneGeometry(9.1, 5.7), basic(live.tex, { transparent: false, color: new THREE.Color().setScalar(0.62) })); screen.position.set(0, 7, 0.17); g.add(screen)
+      addStatic(bx, bz, 0.8)
+      for (const k of [-3.9, 0, 3.9]) camObs.push({ x: bx, z: bz + k, r: 2.2, top: 12 }) // camera-only: the board runs along the road
       boards.push({ id: p.id, g, frame, live, base: i % 2 ? VIOLET : PINK })
       tickers.push((t) => { g.position.y = Math.sin(t * 1.2 + i) * 0.12 })
     })
@@ -147,14 +148,15 @@ export function createStations({ scene, addStatic, tickers, camObs, isMobile }) 
 
   /* ------------------------------------------------------------------ Career path */
   function buildPath() {
-    const z0 = GATE_Z
-    const line = new THREE.Mesh(new THREE.PlaneGeometry(110, 0.35), glow(VIOLET, 3)); line.rotation.x = -Math.PI / 2; line.position.set(0, 0.06, z0); scene.add(line)
-    for (let x = -50; x <= 50; x += 10) { const t = new THREE.Mesh(new THREE.PlaneGeometry(0.2, 1.6), glow(PINK, 2)); t.rotation.x = -Math.PI / 2; t.position.set(x, 0.06, z0); scene.add(t) }
-    const title = sprite('CAREER PATH', { size: 2.6, accent: '#7a5cff' }); title.position.set(0, 14, z0 + 4); scene.add(title)
+    const title = sprite('CAREER PATH', { size: 3.2, accent: '#7a5cff' }); title.position.set(GATES[0] - 26, 16, 0); scene.add(title)
     JOBS.forEach((j, i) => {
-      const x = gateX[i]
-      for (const s of [-1, 1]) { const p = new THREE.Mesh(new THREE.BoxGeometry(0.9, 9.5, 0.9), dark(0x0d0d14, 0.3, 0.7)); p.position.set(x + s * 6.3, 4.75, z0); scene.add(p); const e = new THREE.Mesh(new THREE.BoxGeometry(0.16, 9.6, 0.16), glow(PINK, 3)); e.position.set(x + s * 6.3, 4.8, z0 - 0.5); scene.add(e); addStatic(x + s * 6.3, z0, 0.9) }
-      const beam = new THREE.Mesh(new THREE.BoxGeometry(13.6, 0.5, 0.9), dark(0x0d0d14, 0.3, 0.7)); beam.position.set(x, 9.6, z0); scene.add(beam)
+      const x = GATES[i], g = new THREE.Group(); g.position.set(x, 0, 0); g.rotation.y = Math.PI / 2; scene.add(g) // arch spans the road (world z)
+      for (const s of [-1, 1]) {
+        const p = new THREE.Mesh(new THREE.BoxGeometry(0.9, 11, 0.9), dark(0x0d0d14, 0.3, 0.7)); p.position.set(s * 8.2, 5.5, 0); g.add(p)
+        const e = new THREE.Mesh(new THREE.BoxGeometry(0.16, 11.1, 0.16), glow(PINK, 3)); e.position.set(s * 8.2, 5.55, -0.5); g.add(e)
+        addStatic(x, s * 8.2, 0.9)
+      }
+      const beam = new THREE.Mesh(new THREE.BoxGeometry(17.6, 0.6, 0.9), dark(0x0d0d14, 0.3, 0.7)); beam.position.set(0, 11.2, 0); g.add(beam)
       const tex = canvasTex(1400, 440, (c, w, h) => {
         c.fillStyle = '#08080d'; c.fillRect(0, 0, w, h); c.strokeStyle = '#7a5cff'; c.lineWidth = 5; c.strokeRect(12, 12, w - 24, h - 24)
         c.fillStyle = '#ff2d8a'; c.font = `300 44px ${F_MONO}`; c.fillText(j.date.toUpperCase(), 60, 90)
@@ -162,29 +164,30 @@ export function createStations({ scene, addStatic, tickers, camObs, isMobile }) 
         c.fillStyle = 'rgba(242,239,236,.6)'; c.font = `italic 400 76px ${F_SERIF}`; c.fillText(j.role, 60, 330)
         c.fillStyle = 'rgba(242,239,236,.35)'; c.font = `300 36px ${F_MONO}`; c.fillText(`0${i + 1} / 03`, w - 220, 90)
       })
-      const board = new THREE.Mesh(new THREE.PlaneGeometry(9, 2.85), basic(tex, { transparent: false })); board.position.set(x, 7.6, z0 - 0.5); board.rotation.y = Math.PI; scene.add(board)
-      const board2 = board.clone(); board2.position.z = z0 + 0.5; board2.rotation.y = 0; scene.add(board2)
-      const arch = new THREE.Mesh(new THREE.TorusGeometry(6.3, 0.07, 6, 64, Math.PI), glow(VIOLET, 3)); arch.position.set(x, 9.7, z0); scene.add(arch)
+      const board = new THREE.Mesh(new THREE.PlaneGeometry(11, 3.5), basic(tex, { transparent: false })); board.position.set(0, 8.6, -0.5); board.rotation.y = Math.PI; g.add(board)
+      const board2 = board.clone(); board2.position.z = 0.5; board2.rotation.y = 0; g.add(board2)
+      const arch = new THREE.Mesh(new THREE.TorusGeometry(8.2, 0.08, 6, 64, Math.PI), glow(VIOLET, 3)); arch.position.set(0, 11.2, 0); g.add(arch)
     })
   }
 
   /* ------------------------------------------------------------------ Contact portal */
   const portal = { rings: [], beam: null }
   function buildContact() {
-    const [cx, cz] = ZONES.find((k) => k.id === 'contact').pos
-    const base = new THREE.Mesh(new THREE.CylinderGeometry(3.4, 4, 0.8, 8), dark(0x0d0d14, 0.3, 0.8)); base.position.set(cx, 0.4, cz); scene.add(base); addStatic(cx, cz, 3.6)
+    const z = ZONES.find((k) => k.id === 'contact'), [cx, cz] = z.pos, S = 1.6
+    const g = new THREE.Group(); g.position.set(cx, 0, cz); g.scale.setScalar(S); scene.add(g)
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(3.4, 4, 0.8, 8), dark(0x0d0d14, 0.3, 0.8)); base.position.y = 0.4; g.add(base); addStatic(cx, cz, 3.8 * S)
     for (let i = 0; i < 5; i++) {
-      const r = new THREE.Mesh(new THREE.TorusGeometry(2.2 + i * 0.55, 0.09, 8, 60), glow(i % 2 ? VIOLET : PINK, 3.5)); r.position.set(cx, 2 + i * 1.6, cz); scene.add(r); portal.rings.push(r)
+      const r = new THREE.Mesh(new THREE.TorusGeometry(2.2 + i * 0.55, 0.09, 8, 60), glow(i % 2 ? VIOLET : PINK, 3.5)); r.position.set(0, 2 + i * 1.6, 0); g.add(r); portal.rings.push(r)
     }
-    const beam = new THREE.Mesh(new THREE.CylinderGeometry(1.4, 2, 70, 24, 1, true), new THREE.MeshBasicMaterial({ color: PINK, transparent: true, opacity: 0.16, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, toneMapped: false })); beam.position.set(cx, 35, cz); scene.add(beam)
+    const beam = new THREE.Mesh(new THREE.CylinderGeometry(1.4, 2, 70, 24, 1, true), new THREE.MeshBasicMaterial({ color: PINK, transparent: true, opacity: 0.16, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, toneMapped: false })); beam.position.set(0, 35, 0); g.add(beam)
     tickers.push((t) => { portal.rings.forEach((r, i) => { r.rotation.x = Math.PI / 2 + Math.sin(t * 0.8 + i) * 0.35; r.rotation.y = t * (0.5 + i * 0.15) * (i % 2 ? -1 : 1) }) })
     const tex = canvasTex(2048, 700, (x, w) => {
       x.textAlign = 'center'; x.fillStyle = '#f2efec'; x.shadowColor = '#ff2d8a'; x.shadowBlur = 30
       x.font = `200 210px ${F_SANS}`; x.fillText("Let's build", w / 2, 220); x.font = `italic 400 230px ${F_SERIF}`; x.fillStyle = '#ffd0e4'; x.fillText('something that moves.', w / 2, 460)
       x.shadowBlur = 0; x.fillStyle = '#ff2d8a'; x.font = `300 52px ${F_MONO}`; x.fillText('IM.ENZO.021@GMAIL.COM', w / 2, 590)
     })
-    const sign = new THREE.Mesh(new THREE.PlaneGeometry(26, 8.9), basic(tex, { depthWrite: false })); sign.position.set(cx, 17, cz + 16); sign.rotation.y = Math.PI; scene.add(sign)
-    const s = sprite('CONTACT', { size: 2.4 }); s.position.set(cx, 12.5, cz - 6); scene.add(s)
+    const sign = new THREE.Mesh(new THREE.PlaneGeometry(30, 10.3), basic(tex, { depthWrite: false })); sign.position.set(cx + 27, 19, cz); sign.rotation.y = -Math.PI / 2; scene.add(sign)
+    const s = sprite('CONTACT', { size: 3.2 }); s.position.set(cx, 20, cz); scene.add(s)
   }
 
 

@@ -1,13 +1,25 @@
-/** Waypoints for the auto tour. `dwell` = seconds to stop and let the info panel be read. Routes avoid every collider. */
-export const buildTourRoute = (projZones) => [
-
-  { p: [0, 4], dwell: 11 },
-  { p: [-14, 4] }, { p: [-28, -6], dwell: 8 },
-  { p: [-14, 8] }, { p: [0, 10] }, { p: [14, 8] }, { p: [27, -4], dwell: 8 },
-  { p: [12, -12] }, { p: [0, -24] },
-  ...projZones.map((z) => ({ p: z.pos, dwell: 4.6 })),
-  { p: [48, -40] }, { p: [50, 10] }, { p: [-36, 20] },
-  { p: [-36, 36], dwell: 6.5 }, { p: [-18, 40] }, { p: [-18, 26] }, { p: [0, 24] }, { p: [0, 36], dwell: 6.5 },
-  { p: [18, 40] }, { p: [18, 26] }, { p: [36, 24] }, { p: [36, 36], dwell: 6.5 },
-  { p: [24, 50] }, { p: [0, 55], dwell: 10 },
-]
+/**
+ * Auto-tour route: visits every zone by following the real road network (BFS over intersections),
+ * keeping to the right-hand lane. Waypoints with `dwell` stop for that many seconds so the info panel can be read.
+ */
+export function buildTourRoute(city, zones) {
+  const by = (id) => zones.find((z) => z.id === id)
+  const stops = [
+    { z: by('home'), dwell: 11 }, { z: by('about'), dwell: 8 }, { z: by('skills'), dwell: 8 },
+    ...zones.filter((z) => z.kind === 'project').map((z) => ({ z, dwell: 4.6 })),
+    ...zones.filter((z) => z.kind === 'job').map((z) => ({ z, dwell: 6.5 })),
+    { z: by('contact'), dwell: 10 },
+  ]
+  const at = (z) => (z.kind === 'project' || z.kind === 'job' ? z.pos : z.spawn || z.pos)
+  const out = []; let cur = by('home').spawn
+  const lane = (pts) => pts.map((p, i) => {
+    const a = pts[i - 1] || p, b = pts[i + 1] || p, dx = b[0] - a[0], dz = b[1] - a[1], L = Math.hypot(dx, dz) || 1
+    return [p[0] + (-dz / L) * 3, p[1] + (dx / L) * 3] // right of travel = (-dz, dx)
+  })
+  for (const s of stops) {
+    const t = at(s.z), route = city.route(cur[0], cur[1], t[0], t[1])
+    lane([[cur[0], cur[1]], ...route, t]).slice(1, -1).forEach((p) => out.push({ p }))
+    out.push({ p: [t[0], t[1]], dwell: s.dwell }); cur = t
+  }
+  return out
+}
