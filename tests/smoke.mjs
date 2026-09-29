@@ -33,11 +33,6 @@ try {
   }
   step('static assets (sw, manifest, og image, cv, models manifest)')
 
-  // classic version
-  await page.goto(`${BASE}/classic.html`, { waitUntil: 'load' })
-  assert.match(await page.textContent('h1'), /Iman/)
-  step('classic version renders')
-
   // 3D world
   await page.goto(`${BASE}/?quality=high`, { waitUntil: 'load' })
   await page.waitForFunction(() => /Press Enter/.test(document.getElementById('startLabel')?.textContent || ''), null, { timeout: 120000 })

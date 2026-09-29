@@ -1,14 +1,12 @@
 # Iman Mohammadi — Drive My Portfolio
 
-A portfolio that is a **3D world**. Drive a car around a Three.js scene: each zone is a section of the CV
-(About, Skills, Work, Career path, Contact), and an "Iman" character introduces himself at spawn.
+A portfolio that is a **3D world**. Drive a Lamborghini around a Three.js night-city: each zone is a section of the CV
+(About, Skills, Work, Career path, Contact), and a hologram "Iman" introduces himself at spawn.
 
-- **World** — `index.html` + `src/world/` (Three.js, custom GLSL ground, bloom, arcade car physics, minimap, WebAudio synth)
-- **The Pipeline** — `pipeline.html` + `src/pipeline/` (Vue 3 UI + Three.js engine): a playable, five-station portfolio — see below
-- **Classic version** — `classic.html` (Vite, GSAP, Lenis, WebGL hero) for a regular scrolling site
-- **Auto tour** — press `T` (or tap *Auto tour*): the car drives itself through every zone, pausing at each for the info panel. Any input takes back control
-- **Look** — shader sky (aurora, nebula, ringed planet), lit instanced skyline, hologram Iman, live-animated project boards, neon light trails, boost pads + energy meter
-- **Performance** — instanced props/orbs (~95 draw calls), GPU-animated particles, dynamic resolution scaling that adapts to the display's refresh rate, lazy-loaded model pipeline
+- **World** — `index.html` + `src/world/` (Three.js, custom GLSL sky/ground/skyline, bloom, arcade car physics, minimap, WebAudio synth)
+- **Auto tour** — press `T`: the car drives itself through every zone (recruiter mode)
+- **Time trial**, boost pads, light trails, photo mode, collectible tech orbs, gamepad + touch controls
+- **Performance** — instanced props/orbs, GPU-animated particles, dynamic resolution scaling tuned to the display's refresh rate, lazy-loaded model pipeline
 - **Mobile** — floating joystick, boost / drift / interact buttons, safe-area aware layouts, adaptive quality
 
 ## Run
@@ -16,7 +14,7 @@ A portfolio that is a **3D world**. Drive a car around a Three.js scene: each zo
 ```bash
 npm install
 npm run dev      # http://localhost:5173
-npm run build    # outputs dist/ (both pages)
+npm run build    # outputs dist/
 ```
 
 Controls: `WASD` / arrows drive · `Shift` boost · `Space` drift · `E` interact · `1–6` fast travel · `T` auto tour · `R` time trial · `P` photo.
@@ -24,28 +22,14 @@ Gamepad: sticks/triggers drive, `RB`/`B` boost, `X`/`LB` drift, `A` interact/sta
 
 Quality: the ⚙ button cycles Auto / High / Med / Low (Auto adapts resolution to the display's refresh rate). `?quality=high` forces full quality.
 
-## The Pipeline
-
-*Ship a website in five stations* — every skill on the CV as something you can play (~3 min, or a 60 s auto-play for recruiters):
-
-| Station | What you do | What is real |
-|---|---|---|
-| 01 Design | Move hue / radius / density tokens | One shared palette re-themes the 3D scene, an SDF-shader UI kit **and the Vue UI** |
-| 02 Build | Configure a parametric cabinet, flat-pack it | Parts generator + shelf-packing nesting onto 8×4 ft sheets (yield, cut list) — `engine/cabinet.js`, shared by 3D and Vue |
-| 03 Render | Stack shader layers | The material is compiled from the *same GLSL strings* the panel prints |
-| 04 Perf | Beat the frame-budget boss | Draw calls / triangles from `renderer.info`, CPU time from timing the real render call; instancing, culling and LOD genuinely change the draw path; the boss is auto-sized to your device |
-| 05 Deploy | Place edge nodes on a globe | Great-circle latency model, brute-force optimum, GPU-animated packet flows over a Natural Earth land mask |
-
-Auto-play (`engine/auto.js`) drives the same reactive state a human edits, so it is a live demo of the real code. Stack: Vue 3 (`<script setup>`), Three.js, GSAP, hand-written GLSL, Vite. Software renderers automatically get low-end budgets.
-
 ## Project layout
 
 ```
-index.html            3D world entry          classic.html   scrolling version
-src/world/world.js    scene, car, zones, UI   stations.js    the six physical sections
+index.html            entry point
+src/world/world.js    scene, car, zones, UI     stations.js  the physical sections
 helpers.js  content.js  tour.js  sky.js  fx.js  models.js  audio.js  analytics.js
 public/               models, project screenshots (shots/), icons, sw.js, og.jpg, CV
-tests/smoke.mjs       end-to-end smoke test (3D world)     tests/pipeline.mjs  full Pipeline run
+tests/smoke.mjs       end-to-end smoke test
 ```
 
 ## Checks

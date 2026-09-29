@@ -1,6 +1,6 @@
 // Service worker: instant repeat visits + offline. Bump VERSION to invalidate everything.
-const VERSION = 'im-v1'
-const SHELL = ['/', '/classic.html', '/manifest.webmanifest', '/icon-192.png']
+const VERSION = 'im-v2'
+const SHELL = ['/', '/manifest.webmanifest', '/icon-192.png']
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(VERSION).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()))

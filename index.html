@@ -30,18 +30,18 @@
   <link rel="manifest" href="/manifest.webmanifest" />
 </head>
 <body>
-  <nav aria-label="Alternative version"><a class="skip mono" href="/classic.html">Skip 3D — open the accessible classic version</a></nav>
+  <nav aria-label="Alternative version"><a class="skip mono" href="#text-version">Skip 3D — read the text version</a></nav>
   <canvas id="world" aria-hidden="true"></canvas>
 
   <!-- Loading / start -->
   <div class="start" id="start" role="region" aria-label="Welcome">
-    <div class="start__top mono"><span>Iman Mohammadi</span><span class="start__links"><a href="/pipeline.html">The Pipeline →</a><a href="/classic.html">Classic view →</a></span></div>
+    <div class="start__top mono"><span>Iman Mohammadi</span></div>
     <div class="start__mid">
       <p class="mono start__tag">Senior Front-End Architect · WebGL &amp; 3D Web</p>
       <h1>Drive<br /><span class="serif">my portfolio</span></h1>
       <p class="start__lead">This site is a 3D world. Take the wheel, explore the zones and meet me along the way.</p>
-      <p class="start__warn mono" id="motionWarn" hidden>Your device asks for reduced motion — effects like screen shake and blur are turned down. The <a href="/classic.html">classic version</a> is calmer still.</p>
-      <p class="start__warn mono" id="startWarn" hidden>No GPU detected — this will run slowly. The <a href="/classic.html">classic version</a> is much smoother here (or add <b>?quality=high</b> to force full quality).</p>
+      <p class="start__warn mono" id="motionWarn" hidden>Your device asks for reduced motion — effects like screen shake and blur are turned down.</p>
+      <p class="start__warn mono" id="startWarn" hidden>No GPU detected — this may run slowly. Use the ⚙ button to lower graphics quality, or add <b>?quality=high</b> to the address to force full quality.</p>
       <div class="start__cta"><button class="start__btn mono" id="startBtn" disabled><span id="startLabel">Loading world… <b id="loadPct">0</b>%</span></button>
       <button class="start__btn start__btn--ghost mono" id="tourBtn" disabled>▶ Auto tour <em>— sit back, I'll drive</em></button></div>
       <div class="start__keys mono">
@@ -59,7 +59,7 @@
 
   <!-- HUD -->
   <div class="hud" id="hud" role="region" aria-label="Game controls">
-    <div class="hud__brand mono"><a href="#" data-nav="home">IM<em>.</em></a><a href="/classic.html" class="dim">Classic view</a></div>
+    <div class="hud__brand mono"><a href="#" data-nav="home">IM<em>.</em></a></div>
     <nav class="hud__nav mono" id="nav" aria-label="Fast travel"></nav>
     <div class="hud__stats mono"><span>Orbs <b id="orbCount">0</b>/<span id="orbTotal">0</span></span><span class="dim" id="fps">— fps</span><span class="hud__btns"><button class="mono" id="qualBtn" aria-label="Graphics quality">⚙ Auto</button><button class="mono" id="photoBtn" aria-label="Save a photo">◉ Photo</button><button class="mono" id="muteBtn" aria-label="Toggle sound">♪ on</button><button class="mono" id="creditsBtn" hidden>Credits</button></span></div>
     <div class="hud__loc mono" id="loc"></div>
@@ -73,7 +73,8 @@
   <div class="sr" id="srLive" aria-live="polite"></div>
   <div class="flash" id="flash" aria-hidden="true"></div>
 
-  <div class="gfxerr" id="gfxError" role="region" aria-label="Graphics error"><div role="alert"><h2>Graphics interrupted</h2><p>Your GPU reset this page (it can happen on low memory or when switching apps).</p><p><button class="mono" onclick="location.reload()">Reload the world</button> <a class="mono" href="/classic.html">Open classic version</a></p></div></div>
+  <div class="gfxerr" id="noGl" role="region" aria-label="WebGL required"><div role="alert"><h2>This world needs WebGL 2</h2><p>Your browser or device doesn't support it. Try an up-to-date Chrome, Edge, Firefox or Safari.</p><p>Meanwhile: <a href="mailto:im.enzo.021@gmail.com">im.enzo.021@gmail.com</a> · <a href="/Iman-Mohammadi-CV.pdf" download>CV</a> · <a href="https://github.com/iman-mohamadi">GitHub</a></p></div></div>
+  <div class="gfxerr" id="gfxError" role="region" aria-label="Graphics error"><div role="alert"><h2>Graphics interrupted</h2><p>Your GPU reset this page (it can happen on low memory or when switching apps).</p><p><button class="mono" onclick="location.reload()">Reload the world</button></p></div></div>
 
   <!-- Touch controls -->
   <div class="touch" id="touch" role="region" aria-label="Touch controls">
@@ -87,9 +88,9 @@
   <div class="credits" id="credits" role="region" aria-label="Credits"></div>
 
   <!-- Same content, readable by screen readers / crawlers -->
-  <main class="sr">
+  <main class="sr" id="text-version"><a class="closetxt" href="#">Close text version</a>
     <h1>Iman Mohammadi — Senior Front-End Architect, WebGL &amp; 3D Web Specialist</h1>
-    <p>Tehran, Iran · im.enzo.021@gmail.com · +98 938 424 9894 · <a href="https://github.com/iman-mohamadi">GitHub</a> · <a href="/classic.html">Classic (non-3D) version of this portfolio</a></p>
+    <p>Tehran, Iran · im.enzo.021@gmail.com · +98 938 424 9894 · <a href="https://github.com/iman-mohamadi">GitHub</a></p>
     <p>Senior front-end and full-stack developer with 9+ years of experience building high-performance web systems with Vue, Nuxt, Next.js, Three.js, WebGL and GSAP. Creator of the open-source Raya UI design system.</p>
     <h2>Selected work</h2>
     <ul>
@@ -103,7 +104,7 @@
     <h2>Experience</h2>
     <p>Senior Frontend Developer, Arnika Mehr Kish (2024–present). Frontend Web Developer, Dewzilla (2020–2023). Frontend Developer, GSI Telecom (2017–2020).</p>
   </main>
-  <noscript><p style="color:#fff;padding:2rem">This portfolio is a 3D world and needs JavaScript. <a style="color:#ff2d8a" href="/classic.html">Open the classic version</a>.</p></noscript>
+  <noscript><p style="color:#fff;padding:2rem">This portfolio is a 3D world and needs JavaScript.</p></noscript>
 
   <script type="module" src="/src/world/world.js"></script>
 </body>

@@ -202,4 +202,9 @@ kbd{font:400 .68rem var(--mono);padding:.15em .5em;border:1px solid var(--faint)
   .hud__btns button{padding:.4rem .7rem;font-size:.58rem;min-width:74px;text-align:left}
 }
 
-.start__top .start__links{display:flex;gap:1.4rem}
+
+/* text version (skip link target): a plain readable overlay of the same content */
+#text-version:target{position:fixed;inset:0;z-index:300;width:auto;height:auto;clip:auto;overflow:auto;padding:clamp(1rem,4vw,3rem);background:#050505;white-space:normal;font-size:1.05rem;line-height:1.6}
+#text-version:target h1{font-weight:200;font-size:clamp(1.8rem,5vw,3rem);letter-spacing:-.04em;margin-bottom:1rem}#text-version:target h2{margin:1.6rem 0 .5rem;font-weight:300}
+#text-version:target a{color:var(--pink);text-decoration:underline}#text-version:target ul{padding-left:1.2rem}
+.closetxt{display:none}#text-version:target .closetxt{display:inline-block;margin-bottom:1.2rem;padding:.6rem 1rem;border:1px solid var(--pink);border-radius:99px;text-decoration:none!important}

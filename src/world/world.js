@@ -13,7 +13,7 @@ import { createStations } from './stations.js'
 import { buildTourRoute } from './tour.js'
 import { ZONES, PROJECTS, projZones, JOBS, SKILLS, STATS, DIALOGUE, ORB_NAMES, ARC, gateX, GATE_Z } from './content.js'
 
-/* ---- capability gate: no WebGL2 → classic site; software renderer → low quality + notice */
+/* ---- capability gate: no WebGL2 → friendly message; software renderer → low quality + notice */
 const qs = new URLSearchParams(location.search)
 const gpuProbe = (() => {
   try {
@@ -25,7 +25,7 @@ const gpuProbe = (() => {
     return { ok: true, name, soft: /swiftshader|llvmpipe|softpipe|software|basic render/i.test(name) }
   } catch (_) { return { ok: false } }
 })()
-if (!gpuProbe.ok) { location.replace('/classic.html?why=webgl'); throw new Error('WebGL2 unavailable — redirecting to the classic version') }
+if (!gpuProbe.ok) { document.getElementById('noGl').classList.add('is-on'); throw new Error('WebGL2 unavailable') }
 const coarse = matchMedia('(pointer:coarse)').matches
 const isMobile = coarse || Math.min(innerWidth, innerHeight) < 600
 const forceHQ = qs.get('quality') === 'high'
@@ -39,7 +39,7 @@ const WORLD_R = 88
 /* ------------------------------------------------------------------ renderer */
 const canvas = $('#world')
 let renderer
-try { renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' }) } catch (e) { location.replace('/classic.html?why=webgl'); throw e }
+try { renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' }) } catch (e) { document.getElementById('noGl').classList.add('is-on'); throw e }
 const gfxErr = document.getElementById('gfxError')
 canvas.addEventListener('webglcontextlost', (e) => { e.preventDefault(); gfxErr.classList.add('is-on') })
 canvas.addEventListener('webglcontextrestored', () => location.reload())
