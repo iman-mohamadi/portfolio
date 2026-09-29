@@ -13,7 +13,7 @@ const C = (h) => new THREE.Color(h)
 const PRESETS = { dawn: 6.4, day: 12.5, dusk: 18.55, night: 23.2 }
 export const TIME_MODES = ['auto', 'dawn', 'day', 'dusk', 'night']
 export const WEATHER_MODES = ['auto', 'clear', 'rain', 'storm']
-const DAY_SECONDS = 420 // one full 24 h cycle in auto mode
+const DAY_SECONDS = 840 // base length of a 24 h cycle in auto mode (the sky speeds up in daylight)
 
 // palette: [night, day]
 const P = {
@@ -26,7 +26,7 @@ const TW = C(0xff7440), TW_FOG = C(0x5a2a30)
 const tmp = new THREE.Color(), tmp2 = new THREE.Color()
 
 export function createAtmosphere({ scene, sky, hemi, sun, bloom, renderer, uniforms, camera, isMobile, audio, city, onChange = () => {} }) {
-  const state = { tod: 19.6, timeMode: 'auto', wxMode: 'auto', rain: 0, rainTarget: 0, wxTimer: 70, day: 0, night: 1, flash: 0, nextBolt: 6, bolts: [] }
+  const state = { tod: 18.2, timeMode: 'auto', wxMode: 'auto', rain: 0, rainTarget: 0, wxTimer: 70, day: 0, night: 1, flash: 0, nextBolt: 6, bolts: [] }
   const rnd = seeded(5)
   const haze = new THREE.Color()
 
@@ -92,7 +92,8 @@ export function createAtmosphere({ scene, sky, hemi, sun, bloom, renderer, unifo
 
   function update(dt, t) {
     // ---- clock
-    if (state.timeMode === 'auto') state.tod = (state.tod + (dt * 24) / DAY_SECONDS) % 24
+    // auto: the sky lingers on dusk and neon night and hurries through the day
+    if (state.timeMode === 'auto') state.tod = (state.tod + ((dt * 24) / DAY_SECONDS) * (1 + 1.4 * state.day - 0.4 * (state.tw || 0))) % 24
     else if (state.target != null) { let d = state.target - state.tod; d = ((d + 12) % 24 + 24) % 24 - 12; state.tod = (state.tod + d * damp(dt, 1.6) + 24) % 24 }
     // ---- weather
     if (state.wxMode === 'auto') {
@@ -105,7 +106,7 @@ export function createAtmosphere({ scene, sky, hemi, sun, bloom, renderer, unifo
     // ---- sun / phase
     const elev = Math.sin(((state.tod - 6) / 24) * TAU)
     const day = sstep(-0.1, 0.22, elev), night = 1 - sstep(-0.2, 0.06, elev), tw = Math.exp(-((elev / 0.17) ** 2))
-    state.day = day; state.night = night
+    state.day = day; state.night = night; state.tw = tw
 
     // ---- colours
     const hor = tmp.copy(P.hor[0]).lerp(P.hor[1], day).lerp(OVERCAST.hor, oc * (0.35 + 0.65 * day)); sky.uniforms.uHor.value.copy(hor)

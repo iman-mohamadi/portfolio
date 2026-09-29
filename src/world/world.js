@@ -560,7 +560,8 @@ function updateCar(dt, t) {
   car.vel.x *= dk; car.vel.y *= dk
   car.speed = car.vel.x * fx + car.vel.y * fz
   audio.engine(clamp(Math.abs(car.speed) / 30, 0, 1), air ? 0.2 : Math.abs(inp.f), car.boost)
-  const steer = clamp(car.speed / 5, -1, 1) * (inp.drift ? 1.5 : 1) * (air ? 0 : 1)
+  car.wallT = Math.max(0, (car.wallT || 0) - dt) // just scraped a wall: don't let steering spin the car while it is pinned
+  const steer = clamp(car.speed / 5, -1, 1) * (inp.drift ? 1.5 : 1) * (air ? 0 : 1) * (car.wallT > 0 && Math.abs(car.speed) < 7 ? 0.25 : 1)
   car.ang -= car.turn * st.turn * steer * dt
   const px = car.pos.x, pz = car.pos.z
   car.pos.x += car.vel.x * dt; car.pos.z += car.vel.y * dt
@@ -574,7 +575,8 @@ function updateCar(dt, t) {
   if (collideCircle(car.pos.x, car.pos.z, car.radius, hitOut, car.y)) {
     car.pos.x = hitOut.x; car.pos.z = hitOut.z
     const vn = car.vel.x * hitOut.nx + car.vel.y * hitOut.nz
-    if (vn < 0) { car.vel.x -= hitOut.nx * vn * 1.4; car.vel.y -= hitOut.nz * vn * 1.4; if (vn < -5) { audio.thud(); buzz(28); shake = Math.min(0.5, -vn * 0.03); sparks.burst(car.pos.x - hitOut.nx * 1.2, car.y + 0.6, car.pos.z - hitOut.nz * 1.2, 0xffd0e4, 16, 7); if (vn < -9) score.lose() } }
+    car.wallT = 0.3
+    if (vn < 0) { car.vel.x -= hitOut.nx * vn * 1.25; car.vel.y -= hitOut.nz * vn * 1.25; if (vn < -5) { audio.thud(); buzz(28); shake = Math.min(0.5, -vn * 0.03); sparks.burst(car.pos.x - hitOut.nx * 1.2, car.y + 0.6, car.pos.z - hitOut.nz * 1.2, 0xffd0e4, 16, 7); if (vn < -9) score.lose() } }
   }
   // ramps / plateaus: a step that is too tall is a wall — slide along it instead of driving through
   if (blockedAt(car.pos.x, car.pos.z)) {
@@ -1033,4 +1035,4 @@ async function boot() {
 renderer.setAnimationLoop(() => { clock.getDelta() }) // keep clock sane while loading
 boot()
 
-if (import.meta.env.DEV) window.__w = { renderer, scene, car, composer, camera }
+if (import.meta.env.DEV) window.__w = { renderer, scene, car, composer, camera, tour, get TOUR() { return TOUR } }
