@@ -56,14 +56,21 @@ export function createAtmosphere({ scene, sky, hemi, sun, bloom, renderer, unifo
   rain.frustumCulled = false; rain.visible = false; rain.renderOrder = 5; scene.add(rain)
 
   /* ---- wet city: glossy materials that pick up the neon environment ---- */
-  const wetMats = city?.mats || [], PBR = !isMobile // phones use Lambert materials: no wet reflections
-  let envOn = false, envTex = null
-  /** The neon environment only costs fragment time, so it is attached to the city's materials just while it is wet. */
+  const wetMats = city?.wetMats || [], PBR = !isMobile // phones never leave the cheap Lambert materials: no wet reflections
+  let wetOn = false, envTex = null
+  /** Dry city = Lambert. While it rains every mesh is switched to its PBR twin, which reflects the neon environment. */
+  function swapMaterials(on) {
+    scene.traverse((o) => {
+      const m = o.material; if (!m || Array.isArray(m) || !m.userData) return
+      if (on) { if (m.userData.wetTwin) o.material = m.userData.wetTwin() } else if (m.userData.dryTwin) o.material = m.userData.dryTwin
+    })
+    if (on) for (const m of wetMats) { m.envMap = envTex; m.needsUpdate = true }
+    wetOn = on
+  }
   const setWet = (w) => {
     const want = PBR && w > 0.03
-    if (want !== envOn) { envOn = want; for (const m of wetMats) { m.envMap = want ? envTex : null; m.needsUpdate = true } }
+    if (want !== wetOn) swapMaterials(want)
     if (want) for (const m of wetMats) { m.roughness = lerp(0.85, 0.32, w); m.envMapIntensity = w * 1.15 }
-    else if (wetMats.length && wetMats[0].roughness !== 0.85) for (const m of wetMats) m.roughness = 0.85
   }
 
   const weatherOf = (mode) => (mode === 'clear' ? 0 : mode === 'rain' ? 0.75 : mode === 'storm' ? 1 : null)
@@ -148,11 +155,9 @@ export function createAtmosphere({ scene, sky, hemi, sun, bloom, renderer, unifo
 
   /** Compile the wet (env-mapped) shader variants once at boot so the first rain shower does not hitch. */
   function warm() {
-    if (!PBR || !envTex || !wetMats.length) return
-    for (const m of wetMats) { m.envMap = envTex; m.needsUpdate = true }
-    renderer.compile(scene, camera)
-    for (const m of wetMats) { m.envMap = null; m.needsUpdate = true }
-    renderer.compile(scene, camera)
+    if (!PBR || !envTex) return
+    swapMaterials(true); renderer.compile(scene, camera)
+    swapMaterials(false)
   }
 
   return {

@@ -77,13 +77,14 @@ export function createCity({ scene, kits, uniforms, mobile, seed = 42 }) {
 
   /* ---- materials: one per kit texture, patched so windows glow at night (uNight) ---- */
   const matCache = new Map()
+  layout.wetMats = [] // PBR "wet twins" of the dry Lambert materials (built lazily, only used while it rains on desktop)
   function gameMat(src, { windows = !!src.map } = {}) {
     if (matCache.has(src)) return matCache.get(src)
-    // Kenney's nature/racing kits flag every material metallic; with no env map that renders black, so metalness is forced off.
+    // Dry city = cheap diffuse Lambert shading. Kenney's nature/racing kits flag every material metallic, so PBR twins force metalness off.
     const opts = { map: src.map, color: src.color, transparent: src.transparent, side: src.side, alphaTest: src.alphaTest, depthWrite: !src.transparent }
-    // phones get diffuse-only Lambert shading (no PBR / wet reflections): a big fill-rate saving
-    const m = mobile ? new THREE.MeshLambertMaterial(opts) : new THREE.MeshStandardMaterial({ ...opts, roughness: 0.85, metalness: 0.02 })
+    const m = new THREE.MeshLambertMaterial(opts)
     if (src.map) src.map.anisotropy = mobile ? 2 : 8
+    if (!mobile) m.userData.wetTwin = () => { if (!m.userData.wet) { const w = new THREE.MeshStandardMaterial({ ...opts, roughness: 0.85, metalness: 0.02 }); w.userData.dryTwin = m; if (windows) w.onBeforeCompile = m.onBeforeCompile; layout.wetMats.push(w); m.userData.wet = w } return m.userData.wet }
     if (windows) m.onBeforeCompile = (sh) => {
       sh.uniforms.uNight = uniforms.uNight; sh.uniforms.uTime = uniforms.uTime
       sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vWp;').replace('#include <begin_vertex>', '#include <begin_vertex>\n#ifdef USE_INSTANCING\n vWp=(modelMatrix*instanceMatrix*vec4(transformed,1.)).xyz;\n#else\n vWp=(modelMatrix*vec4(transformed,1.)).xyz;\n#endif')
@@ -264,11 +265,18 @@ export function createCity({ scene, kits, uniforms, mobile, seed = 42 }) {
   const stats = { instances: 0, drawCalls: 0 }
   // instances are bucketed into 96 m chunks so three.js can frustum-cull everything behind / beside the camera
   const CH = 96
+  layout.chunks = []
+  layout.cull = (cx, cz) => { for (const c of layout.chunks) { const b = c.im.boundingSphere; c.im.visible = Math.hypot(b.center.x - cx, b.center.z - cz) - b.radius < c.far } }
   for (const [key, list] of lists) {
     const [kitName, name] = key.split('|'), kit = kits[kitName], model = kit.get(name); if (!model) continue
     const chunks = new Map()
     for (const it of list) { const k = Math.floor(it.x / CH) + ',' + Math.floor(it.z / CH); let a = chunks.get(k); if (!a) chunks.set(k, (a = [])); a.push(it) }
-    for (const part of chunks.values()) for (const im of instanceModel(model, part, { material: matFor, frustumCulled: true })) { group.add(im); stats.drawCalls++ }
+    for (const part of chunks.values()) for (const im of instanceModel(model, part, { material: matFor, frustumCulled: true })) {
+      group.add(im); stats.drawCalls++
+      // distance cull: small props vanish first, buildings last (fog hides the swap)
+      const tri = (im.geometry.index ? im.geometry.index.count : im.geometry.attributes.position.count) / 3
+      layout.chunks.push({ im, far: kitName === 'nature' ? (name.includes('rock') ? 460 : 210) : tri > 250 ? 350 : 300 })
+    }
     stats.instances += list.length
   }
 
@@ -294,7 +302,6 @@ export function createCity({ scene, kits, uniforms, mobile, seed = 42 }) {
     while (q.length) { const n = q.shift(); if (n === e) break; for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const m = nodes[n.b + dz]?.[n.a + dx]; if (m && !prev.has(m)) { prev.set(m, n); q.push(m) } } }
     const out = []; for (let n = e; n; n = prev.get(n)) out.push([n.x, n.z]); return out.reverse()
   }
-  layout.mats = [...matCache.values()]
   layout.stats = stats; layout.grid = grid; layout.group = group; layout.isRoad = (x, z) => { const i = Math.round(x / T + (G - 1) / 2), j = Math.round(z / T + (G - 1) / 2); return road(i, j) }
   return layout
 }

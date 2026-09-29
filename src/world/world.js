@@ -238,7 +238,12 @@ const plainMats = new Map()
 let envTex = null
 const plainMat = (part) => {
   const src = part.material
-  if (!plainMats.has(src)) { const m = new THREE.MeshStandardMaterial({ map: src.map, color: src.color, roughness: 0.7, metalness: 0.05 }); city?.mats.push(m); plainMats.set(src, m) }
+  if (!plainMats.has(src)) {
+    // cars, props and debris: cheap Lambert while dry, a PBR twin (wet neon reflections) swapped in by the atmosphere when it rains
+    const m = new THREE.MeshLambertMaterial({ map: src.map, color: src.color })
+    if (!isMobile) m.userData.wetTwin = () => { if (!m.userData.wet) { const w = new THREE.MeshStandardMaterial({ map: src.map, color: src.color, roughness: 0.7, metalness: 0.05 }); w.userData.dryTwin = m; city.wetMats.push(w); m.userData.wet = w } return m.userData.wet }
+    plainMats.set(src, m)
+  }
   return plainMats.get(src)
 }
 const orbs = []
@@ -579,7 +584,8 @@ function updateCar(dt, t) {
   // vertical: glued to the height field, or ballistic once the ground falls away (ramp lip, plateau edge)
   const gy = city.heightAt(car.pos.x, car.pos.z)
   if (!car.air) {
-    if (car.y - gy > 0.5) { car.air = true; car.vy = clamp(car.vyG * 1.15, -8, 18); car.airT = 0; car.spinP = car.spinR = 0; car.peak = car.y; car.baseP = car.pitch }
+    // takeoff: small ramps get a little extra kick, the big ones fly true
+    if (car.y - gy > 0.5) { car.air = true; car.vy = clamp(car.vyG * (1.2 - 0.23 * clamp((car.vyG - 6) / 8, 0, 1)), -8, 18); car.airT = 0; car.spinP = car.spinR = 0; car.peak = car.y; car.baseP = car.pitch }
     else { car.vyG = clamp((gy - car.y) / Math.max(dt, 1e-3), -22, 22); car.y = gy }
   }
   if (car.air) {
@@ -829,6 +835,7 @@ function tick() {
   if (frame % 2 === 0) updateArrow()
   updateCamera(dt, t)
   const fu = fx.uniforms; fu.uTime.value = t % 100; fu.uSpeed.value = clamp(Math.abs(car.speed) / 30, 0, 1); fu.uBoost.value = Math.max(car.boost * 0.9, car.padKick); fu.uHit.value = clamp(shake * 1.6, 0, 1)
+  if (frame % 8 === 0 && city) city.cull(camera.position.x, camera.position.z)
   if (frame % 2 === 0 && started) drawMini()
   if (frame % 3 === 0 && started) { spdEl.textContent = String(Math.round(Math.abs(car.speed) * 3.6)).padStart(3, '0'); enEl.style.transform = `scaleX(${car.energy})`; boostEl.style.setProperty('--e', car.energy.toFixed(2)) }
   composer.render()
