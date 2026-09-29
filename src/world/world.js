@@ -5,6 +5,7 @@ import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js'
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js'
 import { createSky } from './sky.js'
+import { createAtmosphere } from './atmosphere.js'
 import { loadKits, dynamicInstances } from './kits.js'
 import { createCity, HALF, T, NAT, tileX, tileZ } from './city.js'
 import { createFxPass, Trail } from './fx.js'
@@ -12,6 +13,8 @@ import { createAudio } from './audio.js'
 import { initAnalytics, track } from './analytics.js'
 import { $, clamp, lerp, damp, PINK, VIOLET, F_SANS, F_SERIF, F_MONO, canvasTex, basic, glow, dark, sprite, seeded } from './helpers.js'
 import { createStations } from './stations.js'
+import { createScore, createRings } from './stunts.js'
+import { createTraffic } from './traffic.js'
 import { buildTourRoute } from './tour.js'
 import { ZONES, PROJECTS, projZones, JOBS, SKILLS, STATS, DIALOGUE, ORB_NAMES, GATES } from './content.js'
 
@@ -93,7 +96,7 @@ async function loadFonts() {
 }
 
 // sky + GPU-animated particles (no per-frame CPU work)
-const sky = createSky(scene, { mobile: isMobile })
+const sky = createSky(scene, { mobile: isMobile, renderer })
 const gpuTime = { value: 0 }, pxU = { value: pixelRatio }
 /** Rising / drifting point cloud animated entirely in the vertex shader. */
 function gpuPoints({ N, radius, height, color, size, speed = 0.4, opacity = 0.6, seed = 9, cylinder = false }) {
@@ -115,7 +118,7 @@ function gpuPoints({ N, radius, height, color, size, speed = 0.4, opacity = 0.6,
 const motes = gpuPoints({ N: isMobile ? 260 : 650, radius: 60, height: 16, color: 0xb9a8ff, size: 0.22, speed: 0.5 }) // follows the car
 
 /* ------------------------------------------------------------------ car */
-const car = { pos: new THREE.Vector3(0, 0, 28), ang: 0, vel: new THREE.Vector2(), radius: 1.25, rearOff: 1.3, track: 0.85, mw: null, aero: null, speed: 0, fwd: 0, turn: 0, drift: 0, boost: 0, energy: 1, padKick: 0, group: new THREE.Group(), body: new THREE.Group(), wheels: [] }
+const car = { pos: new THREE.Vector3(0, 0, 28), y: 0.14, vy: 0, vyG: 0, air: false, airT: 0, peak: 0, spinP: 0, spinR: 0, baseP: 0, pitch: 0, viewY: 0.14, ang: 0, vel: new THREE.Vector2(), radius: 1.25, rearOff: 1.3, track: 0.85, mw: null, aero: null, speed: 0, fwd: 0, turn: 0, drift: 0, boost: 0, energy: 1, padKick: 0, group: new THREE.Group(), body: new THREE.Group(), wheels: [] }
 {
   const b = car.body
   const hull = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.45, 2.7), dark(0x14141c, 0.35, 0.7)); hull.position.y = 0.45; b.add(hull)
@@ -135,7 +138,7 @@ const car = { pos: new THREE.Vector3(0, 0, 28), ang: 0, vel: new THREE.Vector2()
     w.position.set(x, 0.4, z); car.group.add(w); car.wheels.push(w)
   }
   const light = new THREE.PointLight(PINK, 5, 14, 1.8); light.position.set(0, 0.3, 0); car.group.add(light)
-  car.group.add(b); scene.add(car.group)
+  car.group.rotation.order = 'YXZ'; car.group.add(b); scene.add(car.group)
 }
 const pool = new THREE.Mesh(new THREE.PlaneGeometry(9, 9), basic(canvasTex(128, 128, (x, w) => { const g = x.createRadialGradient(64, 64, 0, 64, 64, 64); g.addColorStop(0, 'rgba(255,45,138,.55)'); g.addColorStop(1, 'rgba(255,45,138,0)'); x.fillStyle = g; x.fillRect(0, 0, w, w) }), { blending: THREE.AdditiveBlending, depthWrite: false }))
 pool.rotation.x = -Math.PI / 2; pool.position.y = 0.04; scene.add(pool)
@@ -230,7 +233,12 @@ const dummy = new THREE.Object3D()
 const pushables = []
 const props = { groups: [] }
 const plainMats = new Map()
-const plainMat = (part) => { const src = part.material; if (!plainMats.has(src)) plainMats.set(src, new THREE.MeshStandardMaterial({ map: src.map, color: src.color, roughness: 0.7, metalness: 0.05 })); return plainMats.get(src) }
+let envTex = null
+const plainMat = (part) => {
+  const src = part.material
+  if (!plainMats.has(src)) { const m = new THREE.MeshStandardMaterial({ map: src.map, color: src.color, roughness: 0.7, metalness: 0.05 }); city?.mats.push(m); plainMats.set(src, m) }
+  return plainMats.get(src)
+}
 const orbs = []
 const orbInfo = { got: 0 }
 const orbMesh = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(0.55, 1), new THREE.MeshBasicMaterial({ color: 0xa892ff, toneMapped: false }), 32)
@@ -258,7 +266,7 @@ function spawnProps(city, kits) {
   }
   // orbs sit on the roads, spread across the whole map
   const spots = roadSpots(city, 32, 42, seeded(77), avoid)
-  spots.forEach(([x, z], i) => orbs.push({ x, z, alive: true, name: ORB_NAMES[i % ORB_NAMES.length], phase: rnd() * 6 }))
+  spots.forEach(([x, z], i) => orbs.push({ x, z, y: 1.3, alive: true, name: ORB_NAMES[i % ORB_NAMES.length], phase: rnd() * 6 }))
   $('#orbTotal').textContent = orbs.length
 }
 
@@ -280,6 +288,8 @@ addEventListener('keydown', (e) => {
   if (e.code === 'KeyT') { tour.on ? cancelTour() : startTour() }
   if (e.code === 'KeyR') { trial.on ? stopTrial('Trial cancelled') : startTrial() }
   if (e.code === 'KeyP') takePhoto()
+  if (e.code === 'KeyN') cycleTime()
+  if (e.code === 'KeyB') cycleWeather()
   const n = +e.code.replace('Digit', ''); if (n >= 1 && n <= NAV.length) warp(NAV[n - 1].id)
 })
 addEventListener('keyup', (e) => { keys[e.code] = false })
@@ -356,7 +366,7 @@ function warp(id, keepTour = false) {
   const z = ZONES.find((k) => k.id === id); if (!z || !started) return
   if (!keepTour) { cancelTour(); stopTrial() }
   const [sx, sz] = z.spawn || z.pos, [tx, tz] = z.pos
-  car.pos.set(sx, 0, sz); car.vel.set(0, 0)
+  car.pos.set(sx, 0, sz); car.vel.set(0, 0); car.y = car.viewY = city.BASE; car.air = false; car.vy = car.vyG = car.spinP = car.spinR = 0
   car.ang = Math.atan2(-(tx - sx), -(tz - sz))
   camSnap = true
   const f = $('#flash'); f.classList.remove('is-on'); void f.offsetWidth; f.classList.add('is-on')
@@ -388,11 +398,12 @@ function drawMini() {
 /* ------------------------------------------------------------------ physics */
 const cq = []
 /** Resolves a circle against nearby circles + axis-aligned boxes (buildings) and the square map bounds. */
-function collideCircle(x, z, r, out) {
+function collideCircle(x, z, r, out, y = 0) {
   let hit = false
   for (let pass = 0; pass < 2; pass++) {
     grid.query(x, z, r + 1, cq)
     for (const s of cq) {
+      if (y > (s.h ?? (s.kind === 'c' ? 7 : 99)) - 0.4) continue // flying over it
       if (s.kind === 'c') {
         const dx = x - s.x, dz = z - s.z, m = r + s.r, d2 = dx * dx + dz * dz
         if (d2 < m * m && d2 > 1e-6) { const d = Math.sqrt(d2), nx = dx / d, nz = dz / d; x = s.x + nx * m; z = s.z + nz * m; out.nx = nx; out.nz = nz; hit = true }
@@ -503,6 +514,9 @@ function getInput(dt) {
   if (padS) { f = clamp(f + padS.f, -1, 1); t = clamp(t + padS.t, -1, 1) }
   return { f, t, boost: keys.ShiftLeft || keys.ShiftRight || boostBtn || !!padS?.boost, drift: !!keys.Space || driftBtn || !!padS?.drift }
 }
+const TAU = Math.PI * 2, GRAV = 21
+let city = null, score = null, rings = null, traffic = null
+const blockedAt = (x, z) => city.heightAt(x, z) - car.y > (car.air ? 2.2 : 0.85)
 function updateCar(dt, t) {
   const inp = started ? getInput(dt) : IDLE
   car.turn += (inp.t - car.turn) * damp(dt, 9)
@@ -510,24 +524,26 @@ function updateCar(dt, t) {
   car.boost += ((wantBoost ? 1 : 0) - car.boost) * damp(dt, 6)
   car.energy = clamp(car.energy + (wantBoost ? -0.26 : 0.08) * dt, 0, 1)
   car.padKick = Math.max(0, car.padKick - dt * 1.5)
+  const air = car.air
   const fx = -Math.sin(car.ang), fz = -Math.cos(car.ang)
   const fwdSpeed = car.vel.x * fx + car.vel.y * fz
-  const acc = (inp.f > 0 ? 30 : inp.f < 0 ? (fwdSpeed > 1 ? 46 : 20) : 0) * (1 + car.boost * 0.9)
+  const acc = (inp.f > 0 ? 30 : inp.f < 0 ? (fwdSpeed > 1 ? 46 : 20) : 0) * (1 + car.boost * 0.9) * (air ? 0.08 : 1)
   car.vel.x += fx * inp.f * acc * dt; car.vel.y += fz * inp.f * acc * dt
-  // lateral grip (drifts when handbrake)
+  // lateral grip (drifts when handbrake) — none in the air
   const rx = -fz, rz = fx
   const latSpeed = car.vel.x * rx + car.vel.y * rz
-  const grip = inp.drift ? 1.1 : 7.5
+  const grip = air ? 0 : inp.drift ? 1.1 : 7.5
   const kill = latSpeed * (1 - Math.exp(-grip * dt))
   car.vel.x -= rx * kill; car.vel.y -= rz * kill
-  const drag = inp.f === 0 ? 1.6 : 0.35
+  const drag = air ? 0.04 : inp.f === 0 ? 1.6 : 0.35
   const sp = Math.hypot(car.vel.x, car.vel.y), max = 27 * (1 + car.boost * 0.55)
   const dk = Math.exp(-(drag + (sp > max ? (sp - max) * 0.4 : 0)) * dt)
   car.vel.x *= dk; car.vel.y *= dk
   car.speed = car.vel.x * fx + car.vel.y * fz
-  audio.engine(clamp(Math.abs(car.speed) / 30, 0, 1), Math.abs(inp.f), car.boost)
-  const steer = clamp(car.speed / 5, -1, 1) * (inp.drift ? 1.5 : 1)
+  audio.engine(clamp(Math.abs(car.speed) / 30, 0, 1), air ? 0.2 : Math.abs(inp.f), car.boost)
+  const steer = clamp(car.speed / 5, -1, 1) * (inp.drift ? 1.5 : 1) * (air ? 0 : 1)
   car.ang -= car.turn * 2.15 * steer * dt
+  const px = car.pos.x, pz = car.pos.z
   car.pos.x += car.vel.x * dt; car.pos.z += car.vel.y * dt
   for (const q of pads) {
     if (q.cd > 0) { q.cd -= dt; continue }
@@ -536,40 +552,101 @@ function updateCar(dt, t) {
       audio.blip(); buzz(15); sparks.burst(q.x, 0.4, q.z, 0x7ee0ff, 16, 8)
     }
   }
-  if (collideCircle(car.pos.x, car.pos.z, car.radius, hitOut)) {
+  if (collideCircle(car.pos.x, car.pos.z, car.radius, hitOut, car.y)) {
     car.pos.x = hitOut.x; car.pos.z = hitOut.z
     const vn = car.vel.x * hitOut.nx + car.vel.y * hitOut.nz
-    if (vn < 0) { car.vel.x -= hitOut.nx * vn * 1.4; car.vel.y -= hitOut.nz * vn * 1.4; if (vn < -5) { audio.thud(); buzz(28); shake = Math.min(0.5, -vn * 0.03); sparks.burst(car.pos.x - hitOut.nx * 1.2, 0.6, car.pos.z - hitOut.nz * 1.2, 0xffd0e4, 16, 7) } }
+    if (vn < 0) { car.vel.x -= hitOut.nx * vn * 1.4; car.vel.y -= hitOut.nz * vn * 1.4; if (vn < -5) { audio.thud(); buzz(28); shake = Math.min(0.5, -vn * 0.03); sparks.burst(car.pos.x - hitOut.nx * 1.2, car.y + 0.6, car.pos.z - hitOut.nz * 1.2, 0xffd0e4, 16, 7); if (vn < -9) score.lose() } }
   }
+  // ramps / plateaus: a step that is too tall is a wall — slide along it instead of driving through
+  if (blockedAt(car.pos.x, car.pos.z)) {
+    if (!blockedAt(car.pos.x, pz)) { car.pos.z = pz; car.vel.y *= -0.2 } else if (!blockedAt(px, car.pos.z)) { car.pos.x = px; car.vel.x *= -0.2 } else { car.pos.x = px; car.pos.z = pz; car.vel.multiplyScalar(-0.2) }
+    if (Math.abs(car.speed) > 8) { audio.thud(); shake = 0.3; sparks.burst(car.pos.x + fx * 1.4, car.y + 0.5, car.pos.z + fz * 1.4, 0xffd0e4, 12, 6) }
+  }
+  // vertical: glued to the height field, or ballistic once the ground falls away (ramp lip, plateau edge)
+  const gy = city.heightAt(car.pos.x, car.pos.z)
+  if (!car.air) {
+    if (car.y - gy > 0.5) { car.air = true; car.vy = clamp(car.vyG * 1.15, -8, 18); car.airT = 0; car.spinP = car.spinR = 0; car.peak = car.y; car.baseP = car.pitch }
+    else { car.vyG = clamp((gy - car.y) / Math.max(dt, 1e-3), -22, 22); car.y = gy }
+  }
+  if (car.air) {
+    car.vy -= GRAV * dt; car.y += car.vy * dt; car.airT += dt; car.peak = Math.max(car.peak, car.y)
+    if (car.airT > 0.2) { car.spinP += -inp.f * 3.7 * dt; car.spinR -= inp.t * 4.6 * dt }
+    const hs = Math.max(2, Math.hypot(car.vel.x, car.vel.y)); car.baseP += (Math.atan2(car.vy, hs) * 0.9 - car.baseP) * damp(dt, 3.2)
+    if (car.y <= gy) landCar(gy)
+  } else {
+    car.spinP *= Math.exp(-9 * dt); car.spinR *= Math.exp(-9 * dt)
+    const fH = city.heightAt(car.pos.x + fx * 1.8, car.pos.z + fz * 1.8), bH = city.heightAt(car.pos.x - fx * 1.8, car.pos.z - fz * 1.8)
+    car.baseP += (clamp(Math.atan2(fH - bH, 3.6), -0.6, 0.6) - car.baseP) * damp(dt, 14)
+  }
+  car.pos.y = car.y; car.pitch = car.baseP + car.spinP
   // visuals
-  car.group.position.set(car.pos.x, 0, car.pos.z); car.group.rotation.y = car.ang
+  car.group.position.set(car.pos.x, car.y, car.pos.z); car.group.rotation.set(car.pitch, car.ang, car.spinR)
+  car.viewY += (car.y - car.viewY) * damp(dt, 2.6)
   car.body.rotation.z = lerp(car.body.rotation.z, car.turn * clamp(car.speed / 25, -1, 1) * 0.12, damp(dt, 8))
   car.body.rotation.x = lerp(car.body.rotation.x, -inp.f * 0.05, damp(dt, 6))
-  car.body.position.y = Math.sin(t * 40) * 0.006 * clamp(Math.abs(car.speed) / 20, 0, 1)
+  car.body.position.y = Math.sin(t * 40) * 0.006 * clamp(Math.abs(car.speed) / 20, 0, 1) * (air ? 0 : 1)
   if (car.mw) {
     for (const w of car.mw) { w.g.rotation.x += car.speed * dt / w.r; if (w.front) w.g.rotation.y = -car.turn * 0.45 }
-    if (car.aero) { const a = car.aero; a.t += ((car.boost > 0.25 ? 1 : 0) - a.t) * damp(dt, 2.2); a.action.time = a.t * a.dur; a.mixer.update(0) }
+    if (car.aero) { const a = car.aero; a.t += ((car.boost > 0.25 || car.air ? 1 : 0) - a.t) * damp(dt, 2.2); a.action.time = a.t * a.dur; a.mixer.update(0) }
   } else {
     for (const w of car.wheels) w.children[0].rotation.x += car.speed * dt / 0.4, w.children[1].rotation.x = w.children[0].rotation.x
     car.wheels[0].rotation.y = car.wheels[1].rotation.y = -car.turn * 0.45
   }
-  pool.position.set(car.pos.x, 0.04, car.pos.z); pool.material.opacity = 0.5 + car.boost * 0.4
+  pool.position.set(car.pos.x, gy + 0.05, car.pos.z); pool.material.opacity = (0.5 + car.boost * 0.4) * clamp(1 - (car.y - gy) / 5, 0.05, 1)
   // light trails from the rear wheels
   {
     const tx = car.pos.x - fx * car.rearOff, tz = car.pos.z - fz * car.rearOff, mv = Math.abs(car.speed) > 3
-    const hex = car.boost > 0.3 ? 0x7ee0ff : PINK, w = 1 + car.boost * 0.8
-    trailL.update(dt, tx + rx * car.track, tz + rz * car.track, rx, rz, hex, mv, w, secret ? 1 : 0)
-    trailR.update(dt, tx - rx * car.track, tz - rz * car.track, rx, rz, hex, mv, w, secret ? 1 : 0)
+    const hex = car.boost > 0.3 ? 0x7ee0ff : PINK, w = 1 + car.boost * 0.8, ty = car.y + 0.05
+    trailL.update(dt, tx + rx * car.track, tz + rz * car.track, rx, rz, hex, mv, w, secret ? 1 : 0, ty)
+    trailR.update(dt, tx - rx * car.track, tz - rz * car.track, rx, rz, hex, mv, w, secret ? 1 : 0, ty)
   }
   // sparks: drift smoke + boost flame
-  const drifting = Math.abs(latSpeed) > 4
+  const drifting = !air && Math.abs(latSpeed) > 4
   if (drifting || car.boost > 0.5) {
     for (const s of [-1, 1]) {
       const bx = car.pos.x - fx * car.rearOff + rx * s * car.track, bz = car.pos.z - fz * car.rearOff + rz * s * car.track
-      sparks.emit(bx, 0.15, bz, -fx * 3 + (Math.random() - 0.5) * 2, 1 + Math.random() * 2, -fz * 3 + (Math.random() - 0.5) * 2, car.boost > 0.5 ? 0x7ee0ff : PINK, 0.5)
+      sparks.emit(bx, car.y + 0.15, bz, -fx * 3 + (Math.random() - 0.5) * 2, 1 + Math.random() * 2, -fz * 3 + (Math.random() - 0.5) * 2, car.boost > 0.5 ? 0x7ee0ff : PINK, 0.5)
     }
   }
+  // scoring: drifting keeps a chain alive; hoops pay out a boost
+  if (started) {
+    if (drifting && Math.abs(car.speed) > 9) score.hold('drift', 55 + Math.abs(latSpeed) * 9, dt)
+    const hit = rings.update(car.pos, dt, t, car.y + 0.7)
+    if (hit) ringHit(hit)
+    score.update(dt)
+  }
   return latSpeed
+}
+function ringHit(r) {
+  const fx = -Math.sin(car.ang), fz = -Math.cos(car.ang)
+  car.vel.x += fx * 9; car.vel.y += fz * 9; car.energy = Math.min(1, car.energy + 0.5); car.padKick = 1
+  score.add('ring', 300); audio.chime(4); buzz(20); sparks.burst(r.x, r.y, r.z, 0x7ee0ff, 30, 9)
+}
+const trafficFx = {
+  onHit(a, nx, nz, rel) {
+    if (rel > 4) { audio.thud(); buzz(26); shake = Math.max(shake, Math.min(0.5, rel * 0.025)); sparks.burst(a.x - nx * 1.4, 0.9, a.z - nz * 1.4, 0xffd27a, 18, 8); score?.add('smash', 130) }
+  },
+  onNear() { score?.add('near', 110); audio.blip() },
+}
+function landCar(gy) {
+  const impact = -car.vy, airT = car.airT, hgt = car.peak - gy
+  car.air = false; car.y = gy; car.vy = 0; car.vyG = 0
+  const nP = Math.round(car.spinP / TAU), nR = Math.round(car.spinR / TAU)
+  const resP = car.spinP - nP * TAU, resR = car.spinR - nR * TAU
+  const clean = Math.abs(resP) < 1.1 && Math.abs(resR) < 1.1
+  car.spinP = resP; car.spinR = resR
+  const trick = airT > 0.45 && hgt > 1.2
+  if (clean) {
+    if (trick) score.add('air', Math.round(airT * 170 + hgt * 35))
+    if (nP) { score.add('flip', Math.abs(nP) * 500); toast(Math.abs(nP) > 1 ? `${Math.abs(nP)}× ${nP > 0 ? 'BACK' : 'FRONT'}FLIP` : nP > 0 ? 'BACKFLIP' : 'FRONTFLIP', 1200) }
+    if (nR) { score.add('roll', Math.abs(nR) * 400); toast(Math.abs(nR) > 1 ? `${Math.abs(nR)}× BARREL ROLL` : 'BARREL ROLL', 1200) }
+    if (trick && !nP && !nR && airT > 0.9) toast(`BIG AIR  ${airT.toFixed(1)}s`, 1100)
+    if (impact > 13) { car.vel.multiplyScalar(0.8); shake = Math.max(shake, 0.25) }
+  } else if (trick) {
+    car.vel.multiplyScalar(0.45); shake = 0.55; audio.thud(); score.lose(); toast('Sloppy landing', 1200)
+    sparks.burst(car.pos.x, car.y + 0.4, car.pos.z, 0xffd0e4, 24, 9)
+  }
+  if (impact > 8) { audio.thud(); buzz(24); sparks.burst(car.pos.x, car.y + 0.2, car.pos.z, 0xffe0a0, 14, 7); shake = Math.max(shake, Math.min(0.4, impact * 0.02)) }
 }
 const pOut = { x: 0, z: 0, nx: 0, nz: 0 }
 function updatePushables(dt) {
@@ -577,10 +654,10 @@ function updatePushables(dt) {
     p.vx *= Math.exp(-1.5 * dt); p.vz *= Math.exp(-1.5 * dt)
     p.x += p.vx * dt; p.z += p.vz * dt
     const dx = p.x - car.pos.x, dz = p.z - car.pos.z, m = p.r + car.radius - 0.05, d = Math.hypot(dx, dz)
-    if (d < m && d > 1e-4) {
+    if (d < m && d > 1e-4 && car.y < 1.6) {
       const nx = dx / d, nz = dz / d; p.x = car.pos.x + nx * m; p.z = car.pos.z + nz * m
       const rel = car.vel.x * nx + car.vel.y * nz
-      if (rel > 0) { p.vx += nx * rel * 1.2; p.vz += nz * rel * 1.2; car.vel.x -= nx * rel * 0.08; car.vel.y -= nz * rel * 0.08; if (rel > 6) { sparks.burst(p.x, 0.8, p.z, 0xffd27a, 5, 4); if (!p.hit) { p.hit = 0.4; audio.thud(0.4) } } }
+      if (rel > 0) { p.vx += nx * rel * 1.2; p.vz += nz * rel * 1.2; car.vel.x -= nx * rel * 0.08; car.vel.y -= nz * rel * 0.08; if (rel > 6) { sparks.burst(p.x, 0.8, p.z, 0xffd27a, 5, 4); if (!p.hit) { p.hit = 0.4; audio.thud(0.4); score.add('smash', 40) } } }
     }
     if (p.hit) p.hit = Math.max(0, p.hit - dt)
     if (collideCircle(p.x, p.z, p.r, pOut)) { p.x = pOut.x; p.z = pOut.z; const vn = p.vx * pOut.nx + p.vz * pOut.nz; if (vn < 0) { p.vx -= pOut.nx * vn * 1.7; p.vz -= pOut.nz * vn * 1.7 } }
@@ -596,7 +673,7 @@ function updateOrbs(dt, t) {
     if (!o.alive) { dummy.scale.setScalar(0); dummy.position.set(0, -50, 0); dummy.updateMatrix(); orbMesh.setMatrixAt(i, dummy.matrix); haloMesh.setMatrixAt(i, dummy.matrix); continue }
     const dx = car.pos.x - o.x, dz = car.pos.z - o.z, d = Math.hypot(dx, dz)
     if (d < 7) { const k = (1 - d / 7) * 14 * dt; o.x += dx * k / Math.max(d, 0.5); o.z += dz * k / Math.max(d, 0.5) }
-    if (d < 1.9) {
+    if (d < 1.9 && Math.abs(car.y + 0.9 - o.y) < 3.2) {
       o.alive = false; orbInfo.got++
       $('#orbCount').textContent = orbInfo.got
       sparks.burst(o.x, 1.2, o.z, 0xa892ff, 18, 7); audio.chime(orbInfo.got); buzz(12)
@@ -604,7 +681,7 @@ function updateOrbs(dt, t) {
       else toast(`+ ${o.name}  ·  ${orbInfo.got}/${orbs.length}`, 1300)
       continue
     }
-    dummy.position.set(o.x, 1.3 + Math.sin(t * 2 + o.phase) * 0.25, o.z); dummy.rotation.set(0, t * 1.4 + o.phase, 0); dummy.scale.setScalar(1); dummy.updateMatrix(); orbMesh.setMatrixAt(i, dummy.matrix)
+    dummy.position.set(o.x, o.y + Math.sin(t * 2 + o.phase) * 0.25, o.z); dummy.rotation.set(0, t * 1.4 + o.phase, 0); dummy.scale.setScalar(1); dummy.updateMatrix(); orbMesh.setMatrixAt(i, dummy.matrix)
     dummy.rotation.set(t * 2, t * 0.7, 0); dummy.updateMatrix(); haloMesh.setMatrixAt(i, dummy.matrix)
   }
   orbMesh.instanceMatrix.needsUpdate = haloMesh.instanceMatrix.needsUpdate = true
@@ -619,7 +696,7 @@ function unlockSecret() {
 const camHead = new THREE.Vector3(), cq2 = []
 /** If a building / billboard / tower sits between the car and the desired camera spot, pull the camera in front of it. */
 function occlude(des) {
-  camHead.set(car.pos.x, 1.6, car.pos.z)
+  camHead.set(car.pos.x, 1.6 + car.viewY, car.pos.z)
   const sx = des.x - camHead.x, sz = des.z - camHead.z, L = Math.hypot(sx, sz) || 1
   let best = 1
   grid.query((camHead.x + des.x) / 2, (camHead.z + des.z) / 2, L / 2 + 8, cq2)
@@ -663,9 +740,9 @@ function updateCamera(dt, t) {
   }
   const port = clamp(1.15 - camera.aspect, 0, 0.7)
   const dist = 11 + sn * 3.5 + port * 7, h = 5.4 + sn * 1.5 + port * 3.5
-  camDes.set(car.pos.x - fx * dist, h, car.pos.z - fz * dist)
+  camDes.set(car.pos.x - fx * dist, h + car.viewY, car.pos.z - fz * dist)
   occlude(camDes)
-  tgt.set(car.pos.x + fx * 5, 1.5, car.pos.z + fz * 5)
+  tgt.set(car.pos.x + fx * 5, 1.5 + car.viewY * 0.9, car.pos.z + fz * 5)
   if (camSnap) { camera.position.copy(camDes); camLook.copy(tgt); camSnap = false }
   camera.position.lerp(camDes, damp(dt, 3.4)); camLook.lerp(tgt, damp(dt, 7))
   avoidObstacles()
@@ -709,9 +786,11 @@ function tick() {
   fpsAcc += dt; fpsN++
   if (fpsAcc > 0.5) { fpsShow = fpsN / fpsAcc; fpsEl.textContent = Math.round(fpsShow) + ' fps'; fpsAcc = 0; fpsN = 0 }
   renderer.info.reset(); pollPad(); updateDRS(dt)
-  gpuTime.value = t; uniforms.uTime.value = t; sky.update(camera, t); motes.position.set(car.pos.x, 0, car.pos.z)
+  gpuTime.value = t; uniforms.uTime.value = t; atmo?.update(dt, t); sky.update(camera, t); motes.position.set(car.pos.x, 0, car.pos.z)
+  if (frame % 30 === 0) paintClock()
   updateCar(dt, t)
   updatePushables(dt); updateOrbs(dt, t)
+  traffic?.update(dt, car, atmo ? atmo.state.night : 1, trafficFx)
   for (const f of tickers) f(t, dt)
   sparks.update(dt)
 
@@ -735,6 +814,19 @@ function onResize() {
   renderer.setSize(w, h, false); composer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix()
 }
 addEventListener('resize', onResize)
+
+/* ------------------------------------------------------------------ time of day + weather */
+let atmo = null
+const todBtn = $('#todBtn'), wxBtn = $('#wxBtn')
+const WX_LABEL = { auto: 'Auto', clear: 'Clear', rain: 'Rain', storm: 'Storm' }, TIME_LABEL = { auto: 'Auto', dawn: 'Dawn', day: 'Day', dusk: 'Dusk', night: 'Night' }
+function paintClock() {
+  if (!atmo) return
+  const ph = atmo.phase, icon = ph === 'Day' ? '☀' : ph === 'Night' ? '☾' : '◐'
+  todBtn.textContent = `${icon} ${atmo.clock}`; todBtn.title = `Time of day — ${TIME_LABEL[atmo.state.timeMode]} (N)`
+}
+function cycleTime() { if (!atmo) return; const m = atmo.cycleTime(); toast(`Time: ${TIME_LABEL[m]}`, 1300); paintClock(); track('time_cycle', { mode: m }) }
+function cycleWeather() { if (!atmo) return; const m = atmo.cycleWeather(); wxBtn.textContent = 'Sky: ' + WX_LABEL[m]; toast(`Weather: ${WX_LABEL[m]}`, 1300); track('weather_cycle', { mode: m }) }
+todBtn.addEventListener('click', cycleTime); wxBtn.addEventListener('click', cycleWeather)
 
 /* ------------------------------------------------------------------ boot */
 if ('serviceWorker' in navigator && import.meta.env.PROD) addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}))
@@ -830,10 +922,15 @@ async function boot() {
   await loadFonts(); setPct(35)
   await new Promise((r) => setTimeout(r, 30))
   const kits = await loadKits(['city', 'cars', 'nature', 'racing']); setPct(60)
-  const city = createCity({ scene, kits, uniforms, mobile: isMobile }); grid = city.grid; setPct(70)
+  city = createCity({ scene, kits, uniforms, mobile: isMobile }); grid = city.grid; setPct(70)
+  score = createScore({ toast, onBank: (cash, chain, rec) => { toast(`+$${cash.toLocaleString('en-US')}  ·  chain ${chain.toLocaleString('en-US')}${rec ? '  ·  new best!' : ''}`, 2600); audio.chime(6); track('chain_bank', { chain }) } })
+  rings = createRings({ scene, list: city.rings, isMobile })
   grid.addCircle(0, 0, 4.8, { tag: 'island' }) // the roundabout island under the hologram
+  envTex = neonEnv()
   spawnProps(city, kits); stations.buildAll(); TOUR = buildTourRoute(city, ZONES); buildMinimap(city); setPct(90)
-  if (import.meta.env.DEV) window.__city = city
+  traffic = createTraffic({ scene, kits, city, count: isMobile ? 14 : 28, plainMat }); traffic.init(0, 28)
+  atmo = createAtmosphere({ scene, sky, hemi, sun: moon, bloom, renderer, uniforms, camera, isMobile, audio, city }); atmo.setEnv(envTex); atmo.update(0, 0); sky.bake(true); paintClock()
+  if (import.meta.env.DEV) { window.__city = city; window.__atmo = atmo }
   const models = await modelsP; applyModels(models); showCredits(models.credits); setPct(97)
   renderer.compile(scene, camera); composer.render(); setPct(100)
   ready = true

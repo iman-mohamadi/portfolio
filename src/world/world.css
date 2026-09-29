@@ -45,6 +45,13 @@ kbd{font:400 .68rem var(--mono);padding:.15em .5em;border:1px solid var(--faint)
 .hud__nav button.is-on{background:rgba(255,45,138,.16);color:var(--fg)}
 .hud__stats{position:absolute;top:var(--pad);right:var(--pad);display:flex;flex-direction:column;align-items:flex-end;gap:.4rem;color:var(--dim)}
 .hud__stats b{color:var(--fg);font-weight:400}
+.hud__stats .cash{color:#ffd27a}.hud__stats .cash b{color:#ffd27a}
+.combo{position:absolute;left:50%;top:calc(var(--sat) + 132px);transform:translate(-50%,-8px);display:flex;flex-direction:column;align-items:center;gap:.3rem;opacity:0;transition:opacity .25s,transform .25s;pointer-events:none;text-shadow:0 2px 18px rgba(0,0,0,.6)}
+.combo.is-on{opacity:1;transform:translate(-50%,0)}
+.combo b{font:300 clamp(2rem,4.6vw,3.4rem)/1 'Inter Tight',sans-serif;color:#fff;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.combo span{font-size:.68rem;letter-spacing:.18em;color:#ff8fc0}
+.combo i{display:block;width:150px;height:3px;border-radius:2px;background:rgba(255,255,255,.14);overflow:hidden}
+.combo em{display:block;height:100%;background:linear-gradient(90deg,#ff2d8a,#7ee0ff);transform-origin:left;transform:scaleX(1)}
 .hud__loc{position:absolute;left:var(--pad);bottom:var(--pad);color:var(--dim)}
 .hud__loc b{color:var(--pink);font-weight:400}
 #mini{position:absolute;right:var(--pad);bottom:var(--pad);width:150px;height:150px;border-radius:50%;border:1px solid var(--faint);background:rgba(8,8,10,.55);backdrop-filter:blur(8px)}

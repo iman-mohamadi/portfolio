@@ -46,12 +46,12 @@ export class Trail {
     this.c = new THREE.Color()
   }
   /** x,z head position; nx,nz unit sideways vector; colour hex; moving flag; w width multiplier */
-  update(dt, x, z, nx, nz, hex, moving, w = 1, rainbow = 0) {
+  update(dt, x, z, nx, nz, hex, moving, w = 1, rainbow = 0, y = 0.16) {
     const s = this.samples
     for (let i = s.length - 1; i >= 0; i--) { s[i].age += dt; if (s[i].age > this.life) s.length = i }
     this.acc += dt
-    if (moving && this.acc > 0.02) { this.acc = 0; s.unshift({ x, z, nx, nz, age: 0, w }); if (s.length > this.max - 1) s.length = this.max - 1 }
-    const head = { x, z, nx, nz, age: 0, w }
+    if (moving && this.acc > 0.02) { this.acc = 0; s.unshift({ x, y, z, nx, nz, age: 0, w }); if (s.length > this.max - 1) s.length = this.max - 1 }
+    const head = { x, y, z, nx, nz, age: 0, w }
     const m = moving ? s.length + 1 : s.length
     let v = 0
     for (let i = 0; i < m; i++) {
@@ -60,8 +60,8 @@ export class Trail {
       this.c.set(hex); if (rainbow) this.c.setHSL((performance.now() * 0.0003 + i * 0.02) % 1, 0.9, 0.55)
       const f = k * k * 1.4
       const o = v * 3
-      this.pos[o] = p.x + p.nx * hw; this.pos[o + 1] = 0.16; this.pos[o + 2] = p.z + p.nz * hw
-      this.pos[o + 3] = p.x - p.nx * hw; this.pos[o + 4] = 0.16; this.pos[o + 5] = p.z - p.nz * hw
+      this.pos[o] = p.x + p.nx * hw; this.pos[o + 1] = p.y; this.pos[o + 2] = p.z + p.nz * hw
+      this.pos[o + 3] = p.x - p.nx * hw; this.pos[o + 4] = p.y; this.pos[o + 5] = p.z - p.nz * hw
       this.col[o] = this.col[o + 3] = this.c.r * f; this.col[o + 1] = this.col[o + 4] = this.c.g * f; this.col[o + 2] = this.col[o + 5] = this.c.b * f
       v += 2
     }

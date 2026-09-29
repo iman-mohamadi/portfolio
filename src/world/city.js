@@ -80,7 +80,9 @@ export function createCity({ scene, kits, uniforms, mobile, seed = 42 }) {
   function gameMat(src, { windows = !!src.map } = {}) {
     if (matCache.has(src)) return matCache.get(src)
     // Kenney's nature/racing kits flag every material metallic; with no env map that renders black, so metalness is forced off.
-    const m = new THREE.MeshStandardMaterial({ map: src.map, color: src.color, roughness: 0.85, metalness: 0.02, transparent: src.transparent, side: src.side, alphaTest: src.alphaTest, depthWrite: !src.transparent })
+    const opts = { map: src.map, color: src.color, transparent: src.transparent, side: src.side, alphaTest: src.alphaTest, depthWrite: !src.transparent }
+    // phones get diffuse-only Lambert shading (no PBR / wet reflections): a big fill-rate saving
+    const m = mobile ? new THREE.MeshLambertMaterial(opts) : new THREE.MeshStandardMaterial({ ...opts, roughness: 0.85, metalness: 0.02 })
     if (src.map) src.map.anisotropy = mobile ? 2 : 8
     if (windows) m.onBeforeCompile = (sh) => {
       sh.uniforms.uNight = uniforms.uNight; sh.uniforms.uTime = uniforms.uTime
@@ -94,22 +96,33 @@ export function createCity({ scene, kits, uniforms, mobile, seed = 42 }) {
           vec2 pc=floor(vMapUv*vec2(16.,4.)); // palette cell: dark glass (3,2) and pale-blue glass (11,1)
           win=step(abs(pc.x-3.),.1)*step(abs(pc.y-2.),.1)+step(abs(pc.x-11.),.1)*step(abs(pc.y-1.),.1);
           #endif
+          if(win>0.&&uNight>.02){
           vec3 cell=floor(vec3(vWp.x+vWp.z,vWp.y*.9,vWp.x-vWp.z)*.75);float h=hh(cell);
           float on=step(.42,h)*(.8+.2*sin(uTime*.6+h*40.));
           vec3 tint=mix(vec3(1.,.72,.38),vec3(.6,.82,1.),step(.78,hh(cell+7.)));
-          totalEmissiveRadiance+=win*on*uNight*tint*1.9;
+          totalEmissiveRadiance+=win*on*uNight*tint*1.9;}
         }`)
     }
     matCache.set(src, m); return m
   }
   const matFor = (part) => gameMat(part.material)
 
+  /* ---- stunt jumps: road tiles that are swapped for the kit's slant pieces (rising along local +x) ----
+   * ry: 0 → rises toward +x · π → -x · -π/2 → +z · π/2 → -z.  Launch/landing pairs sit either side of an intersection. */
+  const RAMP_KIT = { slant: ['road/road-slant', 0.27], high: ['road/road-slant-high', 0.52] }
+  const jumpTiles = new Map()
+  const jump = (i, j, kind, ry) => jumpTiles.set(i + ',' + j, { kind, ry })
+  // J1 · x=-144 southbound over the z=0 crossroad (small)   J2 · x=-96 southbound (big, lands on a second big ramp)   J3 · z=0 eastbound over x=-96 (small)
+  jump(4, 15, 'slant', -Math.PI / 2); jump(4, 17, 'slant', Math.PI / 2)
+  jump(8, 15, 'high', -Math.PI / 2); jump(8, 18, 'high', Math.PI / 2)
+  jump(7, 16, 'slant', 0); jump(9, 16, 'slant', Math.PI)
+
   /* ---- roads ---- */
   const isRoadTile = (i, j) => i >= 0 && j >= 0 && i < G && j < G && (i % 4 === 0 || j % 4 === 0)
   const inRound = (i, j) => Math.abs(i - 16) <= 1 && Math.abs(j - 16) <= 1
   const road = (i, j) => isRoadTile(i, j) || inRound(i, j)
   for (let j = 0; j < G; j++) for (let i = 0; i < G; i++) {
-    if (!isRoadTile(i, j) || inRound(i, j)) continue
+    if (!isRoadTile(i, j) || inRound(i, j) || jumpTiles.has(i + ',' + j)) continue
     const conn = Object.entries(DIRS).filter(([, [dx, dz]]) => road(i + dx, j + dz)).map(([d]) => d)
     const piece = roadPiece(conn); if (!piece) continue
     const x = tileX(i), z = tileZ(j)
@@ -120,13 +133,43 @@ export function createCity({ scene, kits, uniforms, mobile, seed = 42 }) {
     layout.roadTiles.add(i + ',' + j)
   }
   put('city', 'road/road-roundabout', 0, 0, 0, T) // spawn plaza
-  const rb = kits.city.get('road/road-roundabout')
+
+  /* ---- stunt arena: analytic height field that matches the kit meshes (slants rise linearly along their local +x) ---- */
+  const BASE = 0.14 // wheels-on-tarmac height; the kit's road slab is 0.24 high, the car model sinks in slightly
+  const pieces = new Map(), tkey = (x, z) => Math.round(x / T + (G - 1) / 2) + ',' + Math.round(z / T + (G - 1) / 2)
+  layout.rings = []
+  const slant = (x, z, ry, top) => { pieces.set(tkey(x, z), { x, z, c: Math.cos(ry), s: Math.sin(ry), top: top * T }) }
+  for (const [k, r] of jumpTiles) { const [i, j] = k.split(',').map(Number), x = tileX(i), z = tileZ(j), [name, top] = RAMP_KIT[r.kind]; put('city', name, x, z, r.ry, T); slant(x, z, r.ry, top) }
+  const bxy = (bx, bz, col, row) => [blockCenter(bx) + (col - 1) * T, blockCenter(bz) + (row - 1) * T]
+  const blockRamp = (kind, bx, bz, col, row, ry) => { const [x, z] = bxy(bx, bz, col, row), [name, top] = RAMP_KIT[kind]; put('city', name, x, z, ry, T); slant(x, z, ry, top) }
+  const plateau = (bx, bz, col, row, levels = 1) => { const [x, z] = bxy(bx, bz, col, row); for (let k = 0; k < levels; k++) put('city', 'road/tile-high', x, z, 0, T, k * 0.25 * T); pieces.set(tkey(x, z), { flat: true, top: 0.25 * T * levels }) }
+  const hoop = (x, y, z, yaw) => layout.rings.push({ x, y, z, yaw })
+  /** Ground height under a world point (ramps and plateaus, otherwise the flat base). */
+  layout.heightAt = (x, z) => {
+    const p = pieces.get(tkey(x, z)); if (!p) return BASE
+    if (p.flat) return p.top
+    const lx = (x - p.x) * p.c - (z - p.z) * p.s, u = Math.min(1, Math.max(0, lx / T + 0.5))
+    return Math.max(BASE, 0.24 + (p.top - 0.24) * u)
+  }
+  layout.BASE = BASE
+  layout.jumpTiles = jumpTiles
+  // rings hang over the flight paths of the road jumps
+  hoop(-144, 4.5, 0, 0); hoop(-96, 8.7, 0, 0); hoop(-96, 9.9, 12, 0)
+  const arenaBlock = (bx, bz) => {
+    const k = bx + ',' + bz, P = Math.PI
+    if (k === '0,3') { plateau(bx, bz, 1, 1); blockRamp('slant', bx, bz, 0, 1, 0); blockRamp('slant', bx, bz, 2, 1, P); blockRamp('slant', bx, bz, 1, 0, -P / 2); blockRamp('slant', bx, bz, 1, 2, P / 2); hoop(-168, 6.2, -24, P / 2) }
+    else if (k === '0,4') { blockRamp('high', bx, bz, 0, 1, 0); plateau(bx, bz, 1, 1, 2); hoop(-152, 4.4, 24, P / 2) }
+    else if (k === '1,3') { blockRamp('slant', bx, bz, 0, 0, 0); blockRamp('slant', bx, bz, 2, 0, P); blockRamp('slant', bx, bz, 0, 2, 0); blockRamp('slant', bx, bz, 2, 2, P); hoop(-120, 4.4, -36, P / 2); hoop(-120, 4.4, -12, P / 2) }
+    else if (k === '1,4') { blockRamp('high', bx, bz, 0, 1, 0); plateau(bx, bz, 1, 1, 2); plateau(bx, bz, 2, 1, 2); hoop(-96, 5.4, 24, P / 2) }
+    else if (k === '2,3') { plateau(bx, bz, 1, 1); blockRamp('slant', bx, bz, 0, 1, 0); blockRamp('slant', bx, bz, 2, 1, P); blockRamp('slant', bx, bz, 1, 0, -P / 2); blockRamp('slant', bx, bz, 1, 2, P / 2); hoop(-72, 6.2, -24, P / 2) }
+    else if (k === '2,4') { blockRamp('slant', bx, bz, 0, 1, P); hoop(-86, 3.2, 24, P / 2) }
+  }
 
   /* ---- lamps along the roads ---- */
   const lampModel = 'road/light-curved'
   const lampAt = (x, z, ry) => { put('city', lampModel, x, z, ry, T); layout.lamps.push({ x, z, ry }); grid.addCircle(x, z, 0.5, { tag: 'lamp' }) }
   for (let j = 0; j < G; j++) for (let i = 0; i < G; i++) {
-    if (!isRoadTile(i, j) || inRound(i, j)) continue
+    if (!isRoadTile(i, j) || inRound(i, j) || jumpTiles.has(i + ',' + j)) continue
     const x = tileX(i), z = tileZ(j), alongX = j % 4 === 0 && i % 4 !== 0, alongZ = i % 4 === 0 && j % 4 !== 0
     if (alongX && i % 2 === 0) { const s = (i / 2) % 2 ? 1 : -1; lampAt(x, z + s * (T * 0.44), s > 0 ? 0 : Math.PI) }
     if (alongZ && j % 2 === 0) { const s = (j / 2) % 2 ? 1 : -1; lampAt(x + s * (T * 0.44), z, s > 0 ? -Math.PI / 2 : Math.PI / 2) }
@@ -172,7 +215,8 @@ export function createCity({ scene, kits, uniforms, mobile, seed = 42 }) {
     } else if (t === 'P' || t === 'Z') {
       const n = mobile ? 10 : 18
       for (let k = 0; k < n; k++) { const x = cx + (rnd() - 0.5) * 32, z = cz + (rnd() - 0.5) * 32; if (Math.hypot(x, z) < 24) continue; const r = rnd(); if (r < 0.62) tree('nature', pick(rnd() < 0.25 ? PINES : TREES), x, z, NAT * (0.7 + rnd() * 0.5)); else if (r < 0.8 && has(ROCKS[0])) { put('nature', pick(ROCKS), x, z, rnd() * 6.28, NAT * (0.6 + rnd() * 0.6)); grid.addCircle(x, z, 2.2, { tag: 'rock' }) } else put('nature', pick(BUSH), x, z, rnd() * 6.28, NAT * (0.8 + rnd() * 0.5)) }
-    } else if (t === 'R') { for (let k = 0; k < 3; k++) { put('racing', 'race/grandStand', cx - 10 + k * 12, cz - 10, 0, T); grid.addBox(cx - 10 + k * 12, cz - 10, 5.6, 5.6, { tag: 'stand' }) } }
+    } else if (t === 'X') arenaBlock(bx, bz)
+    else if (t === 'R') { for (let k = 0; k < 3; k++) { put('racing', 'race/grandStand', cx - 10 + k * 12, cz - 10, 0, T); grid.addBox(cx - 10 + k * 12, cz - 10, 5.6, 5.6, { tag: 'stand' }) } }
     // sparse street trees along every block edge (skip the stunt arena)
     if (t !== 'X') for (let k = 0; k < (mobile ? 3 : 6); k++) { const e = Math.floor(rnd() * 4), u = (rnd() - 0.5) * 30, x = cx + (e % 2 ? (e === 1 ? 16.4 : -16.4) : u), z = cz + (e % 2 ? u : (e === 0 ? -16.4 : 16.4)); if (has('nat/tree_small')) tree('nature', 'nat/tree_small', x, z, NAT * 0.6, 0.8) }
   }
@@ -185,24 +229,39 @@ export function createCity({ scene, kits, uniforms, mobile, seed = 42 }) {
     const r = rnd(); if (r < 0.7) tree('nature', pick(rnd() < 0.5 ? PINES : TREES), x, z, NAT * (0.8 + rnd() * 0.9), 0); else put('nature', pick(ROCKS), x, z, rnd() * 6.28, NAT * (1 + rnd() * 1.4))
   }
 
+  /* ---- street-light glow: one Points cloud for the lamp heads + instanced pools on the tarmac; both fade in with uNight ---- */
+  const glowTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d'), g = x.createRadialGradient(32, 32, 0, 32, 32, 32); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.25, 'rgba(255,255,255,.45)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c) })()
+  const lampHead = (l) => [l.x - 2.4 * Math.sin(l.ry), 0.675 * T - 0.35, l.z - 2.4 * Math.cos(l.ry)]
+  const glowPts = new THREE.BufferGeometry(); glowPts.setAttribute('position', new THREE.Float32BufferAttribute(layout.lamps.flatMap(lampHead), 3))
+  const lampGlow = new THREE.Points(glowPts, new THREE.PointsMaterial({ size: 4.2, map: glowTex, color: 0xffd08a, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }))
+  lampGlow.frustumCulled = false
+  const poolMat = new THREE.MeshBasicMaterial({ map: glowTex, color: 0xffb870, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false })
+  const pools = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), poolMat, layout.lamps.length)
+  { const m = new THREE.Matrix4(), sc = new THREE.Vector3(13, 1, 13), q = new THREE.Quaternion(); layout.lamps.forEach((l, i) => { const [hx, , hz] = lampHead(l); m.compose(new THREE.Vector3(hx, 0.09, hz), q, sc); pools.setMatrixAt(i, m) }) }
+  pools.frustumCulled = false; pools.renderOrder = 2
+  layout.lampGlow = { points: lampGlow, pools }
+
   /* ---- draw everything: one InstancedMesh per model part ---- */
-  const group = new THREE.Group(); group.name = 'city'; scene.add(group)
+  const group = new THREE.Group(); group.name = 'city'; scene.add(group); group.add(lampGlow, pools)
   const stats = { instances: 0, drawCalls: 0 }
+  // instances are bucketed into 96 m chunks so three.js can frustum-cull everything behind / beside the camera
+  const CH = 96
   for (const [key, list] of lists) {
     const [kitName, name] = key.split('|'), kit = kits[kitName], model = kit.get(name); if (!model) continue
-    const scale = kitName === 'city' || kitName === 'racing' ? 1 : 1 // per-instance `s` carries the scale (T or NAT)
-    for (const im of instanceModel(model, list, { material: matFor, scale })) { group.add(im); stats.drawCalls++ }
+    const chunks = new Map()
+    for (const it of list) { const k = Math.floor(it.x / CH) + ',' + Math.floor(it.z / CH); let a = chunks.get(k); if (!a) chunks.set(k, (a = [])); a.push(it) }
+    for (const part of chunks.values()) for (const im of instanceModel(model, part, { material: matFor, frustumCulled: true })) { group.add(im); stats.drawCalls++ }
     stats.instances += list.length
   }
 
   /* ---- ground: lawn with a soft procedural speckle, huge so the horizon is never bare ---- */
-  const gt = (() => { const c = document.createElement('canvas'); c.width = c.height = 256; const x = c.getContext('2d'); x.fillStyle = '#4f7d45'; x.fillRect(0, 0, 256, 256); const r = seeded(3); for (let i = 0; i < 2600; i++) { x.fillStyle = `rgba(${30 + r() * 40 | 0},${70 + r() * 60 | 0},${30 + r() * 30 | 0},${0.15 + r() * 0.3})`; x.fillRect(r() * 256, r() * 256, 2 + r() * 4, 2 + r() * 4) } const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(90, 90); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t })()
-  const ground = new THREE.Mesh(new THREE.PlaneGeometry(1400, 1400), new THREE.MeshStandardMaterial({ map: gt, roughness: 1, metalness: 0 }))
+  const gt = (() => { const c = document.createElement('canvas'); c.width = c.height = 256; const x = c.getContext('2d'); x.fillStyle = '#4f7d45'; x.fillRect(0, 0, 256, 256); const r = seeded(3); for (let i = 0; i < 2600; i++) { x.fillStyle = `rgba(${30 + r() * 40 | 0},${70 + r() * 60 | 0},${30 + r() * 30 | 0},${0.15 + r() * 0.3})`; x.fillRect(r() * 256, r() * 256, 2 + r() * 4, 2 + r() * 4) } const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(90, 90); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = mobile ? 1 : 2; return t })()
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(1400, 1400), new THREE.MeshLambertMaterial({ map: gt }))
   ground.rotation.x = -Math.PI / 2; ground.position.y = -0.02; scene.add(ground)
   // pavement under every block so buildings sit on a plinth of concrete rather than raw lawn
   const pave = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshStandardMaterial({ color: 0x8c8f98, roughness: 1 }), 64)
   const dm = new THREE.Matrix4(), q = new THREE.Quaternion().setFromEuler(new THREE.Euler(-Math.PI / 2, 0, 0))
-  layout.blocks.forEach((b, k) => { const s = b.type === 'P' || b.type === 'X' ? 0 : 35.4; dm.compose(new THREE.Vector3(b.x, 0.03, b.z), q, new THREE.Vector3(s, s, 1)); pave.setMatrixAt(k, dm) })
+  layout.blocks.forEach((b, k) => { const s = b.type === 'P' ? 0 : 35.4; dm.compose(new THREE.Vector3(b.x, 0.03, b.z), q, new THREE.Vector3(s, s, 1)); pave.setMatrixAt(k, dm) })
   pave.frustumCulled = false; group.add(pave)
 
   /* ---- road graph (intersections every 4 tiles) for traffic, racing and the auto tour ---- */
@@ -217,6 +276,7 @@ export function createCity({ scene, kits, uniforms, mobile, seed = 42 }) {
     while (q.length) { const n = q.shift(); if (n === e) break; for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const m = nodes[n.b + dz]?.[n.a + dx]; if (m && !prev.has(m)) { prev.set(m, n); q.push(m) } } }
     const out = []; for (let n = e; n; n = prev.get(n)) out.push([n.x, n.z]); return out.reverse()
   }
+  layout.mats = [...matCache.values()]
   layout.stats = stats; layout.grid = grid; layout.group = group; layout.isRoad = (x, z) => { const i = Math.round(x / T + (G - 1) / 2), j = Math.round(z / T + (G - 1) / 2); return road(i, j) }
   return layout
 }

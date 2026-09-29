@@ -1,6 +1,6 @@
-// Tiny WebAudio synth: engine hum, ambient pad, chimes and thuds. No asset files.
+// Tiny WebAudio synth: engine hum, ambient pad, generative music, rain, thunder, chimes and thuds. No asset files.
 export function createAudio() {
-  let ctx, master, eng1, eng2, engGain, filt, on = false, arp, speedN = 0
+  let noiseBuf, ctx, master, eng1, eng2, engGain, filt, on = false, arp, arpLp, rainGain, speedN = 0, lastRain = -1, lastMood = -1
   let muted = false
   try { muted = localStorage.getItem('im-muted') === '1' } catch (_) { /* private mode */ }
 
@@ -19,11 +19,17 @@ export function createAudio() {
       const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.value = f; o.detune.value = d
       const g = ctx.createGain(); g.gain.value = 0.05; o.connect(g); g.connect(master); o.start()
     }
+    // rain bed: looped noise through a band-pass, faded in with the weather
+    const nb = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate), nd = nb.getChannelData(0); for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1
+    const rs = ctx.createBufferSource(); rs.buffer = nb; rs.loop = true
+    const rhp = ctx.createBiquadFilter(); rhp.type = 'highpass'; rhp.frequency.value = 700; const rlp = ctx.createBiquadFilter(); rlp.type = 'lowpass'; rlp.frequency.value = 7000
+    rainGain = ctx.createGain(); rainGain.gain.value = 0; rs.connect(rhp); rhp.connect(rlp); rlp.connect(rainGain); rainGain.connect(master); rs.start()
+    noiseBuf = nb
     on = true
     // generative music: chord-following arpeggio through a feedback delay, tempo rises with speed
     arp = ctx.createGain(); arp.gain.value = 0.5
     const dl = ctx.createDelay(1); dl.delayTime.value = 0.32; const fb = ctx.createGain(); fb.gain.value = 0.38
-    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 2200
+    const lp = arpLp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 2200
     arp.connect(master); arp.connect(dl); dl.connect(lp); lp.connect(fb); fb.connect(dl); lp.connect(master)
     const chords = [[220, 261.63, 329.63], [174.61, 220, 261.63], [261.63, 329.63, 392], [196, 246.94, 293.66]]
     let step = 0, nextT = ctx.currentTime + 0.2
@@ -57,6 +63,17 @@ export function createAudio() {
       engGain.gain.setTargetAtTime(0.03 + throttle * 0.035 + speed * 0.06, t, 0.1)
     },
     chime(n = 0) { const f = 587 * Math.pow(1.122, n % 8); tone(f, 0.28, 'sine', 0.16); setTimeout(() => tone(f * 1.5, 0.35, 'sine', 0.1), 70) },
+    rain(w) { if (!on || Math.abs(w - lastRain) < 0.01) return; lastRain = w; rainGain.gain.setTargetAtTime(w * 0.16, ctx.currentTime, 0.4) },
+    /** Distant rumble: low-passed noise that swells and rolls off. */
+    thunder() {
+      if (!on || muted) return
+      const t = ctx.currentTime, src = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain()
+      src.buffer = noiseBuf; f.type = 'lowpass'; f.frequency.setValueAtTime(420, t); f.frequency.exponentialRampToValueAtTime(70, t + 2.6)
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.5, t + 0.12); g.gain.exponentialRampToValueAtTime(0.0001, t + 2.8)
+      src.connect(f); f.connect(g); g.connect(master); src.start(t); src.stop(t + 3)
+    },
+    /** Brighter, airier arpeggio in daylight; darker and wetter at night. */
+    mood(day) { if (!on || Math.abs(day - lastMood) < 0.02) return; lastMood = day; arpLp.frequency.setTargetAtTime(1400 + day * 2600, ctx.currentTime, 0.6) },
     thud() { tone(120, 0.25, 'sawtooth', 0.2, 40) },
     blip() { tone(880, 0.09, 'triangle', 0.08); setTimeout(() => tone(1320, 0.12, 'triangle', 0.06), 60) },
     get muted() { return muted },
