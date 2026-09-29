@@ -47,6 +47,9 @@ const proj = (p) => ({
   html: `<span class="tag mono">${p.n} — Selected work · ${p.role}</span><h3>${p.name}</h3><p class="chips">${p.chips.map((t) => `<i class="mono">${t}</i>`).join('')}</p><p>${p.text}</p><ul class="pts">${p.points.map((t) => `<li>${t}</li>`).join('')}</ul><a class="btn mono" data-ev="project_visit" href="${p.url}" target="_blank" rel="noopener">${p.host} ↗ <kbd>E</kbd></a>`,
 })
 
+/** Game hubs: each has a landmark in the city and a panel with a start button (E / tap). */
+export const RACE_START = [72, 144]
+const game = (o) => ({ kind: 'game', nav: null, ...o })
 export const ZONES = [
   { id: 'home', kind: 'home', name: 'Welcome', nav: 'Home', pos: [0, 0], r: 30, spawn: [0, 28], color: 0xff2d8a },
   {
@@ -63,6 +66,10 @@ export const ZONES = [
     id: j.id, kind: 'job', name: j.co, nav: i === 0 ? 'Path' : null, pos: [GATES[i], 0], r: 15, spawn: [GATES[i] - 22, 0], color: 0x7a5cff,
     html: `<span class="tag mono">${j.date}</span><h3>${j.role}</h3><h4>${j.co}</h4><ul class="pts">${j.pts.map((p) => `<li>${p}</li>`).join('')}</ul>`,
   })),
+  game({ id: 'race', name: 'Street Circuit', pos: RACE_START, r: 15, spawn: [RACE_START[0] - 26, RACE_START[1] + 3], color: 0x7ee0ff, act: 'race', html: `<span class="tag mono">Game — Street Circuit</span><h3>Race the rivals.</h3><p>Three laps around the avenues against Nova, Vex and Rook. Traffic clears off, checkpoints light up, first place pays <b>$600</b>.</p><div class="cta"><a class="btn primary mono" data-act="race" href="#">Start race <kbd>E</kbd></a></div>` }),
+  game({ id: 'delivery', name: 'Delivery Depot', pos: [24, -24], r: 11, spawn: [24, -6], color: 0xffd27a, act: 'delivery', html: `<span class="tag mono">Game — Delivery Rush</span><h3>Beat the clock.</h3><p>Grab parcels and drop them across town before the timer runs out. Five jobs a shift — faster drops pay more.</p><div class="cta"><a class="btn primary mono" data-act="delivery" href="#">Start shift <kbd>E</kbd></a></div>` }),
+  game({ id: 'garage', name: 'Garage', pos: [-24, 24], r: 11, spawn: [-6, 24], color: 0xff2d8a, act: 'garage', html: `<span class="tag mono">Game — Garage</span><h3>Pick your ride.</h3><p>Spend the cash you earn on eight cars — from a taxi to a future GT — each with its own handling.</p><div class="cta"><a class="btn primary mono" data-act="garage" href="#">Open garage <kbd>E</kbd></a></div>` }),
+  game({ id: 'stunt', name: 'Stunt Park', pos: [-120, 0], r: 74, spawn: [-144, -40], color: 0xa892ff, act: 'stunt', html: `<span class="tag mono">Game — Stunt Park</span><h3>Send it.</h3><p>Ramps over the crossroads, plateaus and hoops. Hold <kbd>W</kbd>/<kbd>S</kbd> in the air to flip and <kbd>A</kbd>/<kbd>D</kbd> to barrel-roll — land clean and the chain multiplies.</p><div class="cta"><a class="btn primary mono" data-act="stunt" href="#">Take me to the ramps</a></div>` }),
   {
     id: 'contact', kind: 'contact', name: 'Contact', nav: 'Contact', pos: [120, 120], r: 24, spawn: [99, 120], color: 0xff2d8a,
     html: `<span class="tag mono">04 — Contact</span><h3>Let's build something that moves.</h3><p>Available for new roles in 2026 · Tehran, Iran · open to remote.</p><div class="cta"><a class="btn primary mono" data-ev="hire_email" href="mailto:im.enzo.021@gmail.com?subject=Let%27s%20talk%20%E2%80%94%20from%20your%20portfolio&body=Hi%20Iman%2C%0A%0A">Hire me — email ↗</a><a class="btn mono" data-ev="cv_download" href="/Iman-Mohammadi-CV.pdf" download>Download CV ↓</a></div><a class="big-link" data-ev="email" href="mailto:im.enzo.021@gmail.com">im.enzo.021@gmail.com</a><div class="links mono"><a data-ev="github" href="https://github.com/iman-mohamadi" target="_blank" rel="noopener">GitHub ↗</a><a data-ev="telegram" href="https://t.me/iEnzO" target="_blank" rel="noopener">Telegram ↗</a><a data-ev="instagram" href="https://instagram.com/im_mhmdi" target="_blank" rel="noopener">Instagram ↗</a><a data-ev="phone" href="tel:+989384249894">+98 938 424 9894</a></div>`,

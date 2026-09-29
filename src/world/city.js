@@ -21,7 +21,7 @@ export const BLOCKS = [
   'XXXZZCCP',
   'SSCWWCHH',
   'SSCWWCQH',
-  'RSPWWPHH',
+  'SSPWWRHH',
 ]
 /** A about plaza · K skills plaza · Q contact plaza · W gallery-avenue flank (kept open for the project boards) */
 
@@ -216,7 +216,7 @@ export function createCity({ scene, kits, uniforms, mobile, seed = 42 }) {
       const n = mobile ? 10 : 18
       for (let k = 0; k < n; k++) { const x = cx + (rnd() - 0.5) * 32, z = cz + (rnd() - 0.5) * 32; if (Math.hypot(x, z) < 24) continue; const r = rnd(); if (r < 0.62) tree('nature', pick(rnd() < 0.25 ? PINES : TREES), x, z, NAT * (0.7 + rnd() * 0.5)); else if (r < 0.8 && has(ROCKS[0])) { put('nature', pick(ROCKS), x, z, rnd() * 6.28, NAT * (0.6 + rnd() * 0.6)); grid.addCircle(x, z, 2.2, { tag: 'rock' }) } else put('nature', pick(BUSH), x, z, rnd() * 6.28, NAT * (0.8 + rnd() * 0.5)) }
     } else if (t === 'X') arenaBlock(bx, bz)
-    else if (t === 'R') { for (let k = 0; k < 3; k++) { put('racing', 'race/grandStand', cx - 10 + k * 12, cz - 10, 0, T); grid.addBox(cx - 10 + k * 12, cz - 10, 5.6, 5.6, { tag: 'stand' }) } }
+    else if (t === 'R') { for (let k = 0; k < 3; k++) { put('racing', 'race/grandStand', cx - 12 + k * 12, cz - 11, Math.PI, T); grid.addBox(cx - 12 + k * 12, cz - 11, 5.6, 3.6, { tag: 'stand', h: 8 }) } }
     // sparse street trees along every block edge (skip the stunt arena)
     if (t !== 'X') for (let k = 0; k < (mobile ? 3 : 6); k++) { const e = Math.floor(rnd() * 4), u = (rnd() - 0.5) * 30, x = cx + (e % 2 ? (e === 1 ? 16.4 : -16.4) : u), z = cz + (e % 2 ? u : (e === 0 ? -16.4 : 16.4)); if (has('nat/tree_small')) tree('nature', 'nat/tree_small', x, z, NAT * 0.6, 0.8) }
   }

@@ -1,5 +1,5 @@
 // Service worker: instant repeat visits + offline. Bump VERSION to invalidate everything.
-const VERSION = 'im-v2'
+const VERSION = 'im-v3'
 const SHELL = ['/', '/manifest.webmanifest', '/icon-192.png']
 
 self.addEventListener('install', (e) => {

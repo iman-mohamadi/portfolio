@@ -15,6 +15,8 @@ import { $, clamp, lerp, damp, PINK, VIOLET, F_SANS, F_SERIF, F_MONO, canvasTex,
 import { createStations } from './stations.js'
 import { createScore, createRings } from './stunts.js'
 import { createTraffic } from './traffic.js'
+import { createModes } from './modes.js'
+import { createGarage } from './garage.js'
 import { buildTourRoute } from './tour.js'
 import { ZONES, PROJECTS, projZones, JOBS, SKILLS, STATS, DIALOGUE, ORB_NAMES, GATES } from './content.js'
 
@@ -118,7 +120,7 @@ function gpuPoints({ N, radius, height, color, size, speed = 0.4, opacity = 0.6,
 const motes = gpuPoints({ N: isMobile ? 260 : 650, radius: 60, height: 16, color: 0xb9a8ff, size: 0.22, speed: 0.5 }) // follows the car
 
 /* ------------------------------------------------------------------ car */
-const car = { pos: new THREE.Vector3(0, 0, 28), y: 0.14, vy: 0, vyG: 0, air: false, airT: 0, peak: 0, spinP: 0, spinR: 0, baseP: 0, pitch: 0, viewY: 0.14, ang: 0, vel: new THREE.Vector2(), radius: 1.25, rearOff: 1.3, track: 0.85, mw: null, aero: null, speed: 0, fwd: 0, turn: 0, drift: 0, boost: 0, energy: 1, padKick: 0, group: new THREE.Group(), body: new THREE.Group(), wheels: [] }
+const car = { pos: new THREE.Vector3(0, 0, 28), y: 0.14, vy: 0, vyG: 0, air: false, airT: 0, peak: 0, spinP: 0, spinR: 0, baseP: 0, pitch: 0, viewY: 0.14, stats: { acc: 30, max: 27, grip: 7.5, turn: 2.15 }, hero: null, heroWheels: null, heroAero: null, procedural: [], pool: null, carId: 'lambo', ang: 0, vel: new THREE.Vector2(), radius: 1.25, rearOff: 1.3, track: 0.85, mw: null, aero: null, speed: 0, fwd: 0, turn: 0, drift: 0, boost: 0, energy: 1, padKick: 0, group: new THREE.Group(), body: new THREE.Group(), wheels: [] }
 {
   const b = car.body
   const hull = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.45, 2.7), dark(0x14141c, 0.35, 0.7)); hull.position.y = 0.45; b.add(hull)
@@ -138,10 +140,10 @@ const car = { pos: new THREE.Vector3(0, 0, 28), y: 0.14, vy: 0, vyG: 0, air: fal
     w.position.set(x, 0.4, z); car.group.add(w); car.wheels.push(w)
   }
   const light = new THREE.PointLight(PINK, 5, 14, 1.8); light.position.set(0, 0.3, 0); car.group.add(light)
-  car.group.rotation.order = 'YXZ'; car.group.add(b); scene.add(car.group)
+  car.group.rotation.order = 'YXZ'; car.procedural = [...b.children]; car.group.add(b); scene.add(car.group)
 }
 const pool = new THREE.Mesh(new THREE.PlaneGeometry(9, 9), basic(canvasTex(128, 128, (x, w) => { const g = x.createRadialGradient(64, 64, 0, 64, 64, 64); g.addColorStop(0, 'rgba(255,45,138,.55)'); g.addColorStop(1, 'rgba(255,45,138,0)'); x.fillStyle = g; x.fillRect(0, 0, w, w) }), { blending: THREE.AdditiveBlending, depthWrite: false }))
-pool.rotation.x = -Math.PI / 2; pool.position.y = 0.04; scene.add(pool)
+pool.rotation.x = -Math.PI / 2; pool.position.y = 0.04; scene.add(pool); car.pool = pool
 const trailL = new Trail(scene, { max: isMobile ? 40 : 64 }), trailR = new Trail(scene, { max: isMobile ? 40 : 64 })
 let secret = false
 
@@ -289,6 +291,9 @@ addEventListener('keydown', (e) => {
   if (e.code === 'KeyR') { trial.on ? stopTrial('Trial cancelled') : startTrial() }
   if (e.code === 'KeyP') takePhoto()
   if (e.code === 'KeyN') cycleTime()
+  if (e.code === 'KeyG') toggleHub()
+  if (e.code === 'KeyC') garage?.toggle()
+  if (e.code === 'Escape') closeMenus()
   if (e.code === 'KeyB') cycleWeather()
   const n = +e.code.replace('Digit', ''); if (n >= 1 && n <= NAV.length) warp(NAV[n - 1].id)
 })
@@ -312,10 +317,10 @@ document.addEventListener('gesturestart', (e) => e.preventDefault())
 /* ------------------------------------------------------------------ zones + UI */
 const NAV = ZONES.filter((z) => z.nav).map((z) => ({ id: z.id, label: z.nav }))
 const navEl = $('#nav')
-navEl.innerHTML = NAV.map((n, i) => `<button data-nav="${n.id}"><b>${i + 1}</b>${n.label}</button>`).join('') + '<button data-tour class="tour">▶ Tour</button><button data-trial class="tour">⏱ Trial</button><button data-nav="contact" class="hire">Hire me</button>'
+navEl.innerHTML = NAV.map((n, i) => `<button data-nav="${n.id}"><b>${i + 1}</b>${n.label}</button>`).join('') + '<button data-tour class="tour">▶ Tour</button><button data-hub class="tour">◈ Play</button><button data-nav="contact" class="hire">Hire me</button>'
 const seen = new Set(); let allSeen = false
 const navKey = (z) => (z.kind === 'project' ? 'work' : z.kind === 'job' ? 'gsi' : z.id)
-document.addEventListener('click', (e) => { const tr = e.target.closest('[data-trial]'); if (tr) { e.preventDefault(); trial.on ? stopTrial('Trial cancelled') : startTrial(); return } const t = e.target.closest('[data-tour]'); if (t) { e.preventDefault(); tour.on ? cancelTour() : startTour(); return } const b = e.target.closest('[data-nav]'); if (!b) return; e.preventDefault(); warp(b.dataset.nav) })
+document.addEventListener('click', (e) => { const hb = e.target.closest('[data-hub]'); if (hb) { e.preventDefault(); toggleHub(); return } const run = e.target.closest('[data-run],a[data-act]'); if (run) { e.preventDefault(); runAct(run.dataset.run || run.dataset.act); return } const tr = e.target.closest('[data-trial]'); if (tr) { e.preventDefault(); trial.on ? stopTrial('Trial cancelled') : startTrial(); return } const t = e.target.closest('[data-tour]'); if (t) { e.preventDefault(); tour.on ? cancelTour() : startTour(); return } const b = e.target.closest('[data-nav]'); if (!b) return; e.preventDefault(); warp(b.dataset.nav) })
 const actBtn = $('#actBtn'), panel = $('#panel'), toastEl = $('#toast'), locEl = $('#loc'), hintEl = $('#hint')
 let active = null, dlg = { i: 0, timer: 0, auto: 0, done: false, seen: false }
 
@@ -346,7 +351,7 @@ function enterZone(z) {
   active = z
   clearInterval(dlg.timer); clearTimeout(dlg.auto)
   navEl.querySelectorAll('button').forEach((b) => b.classList.toggle('is-on', !!z && (b.dataset.nav === z.id || (b.dataset.nav === 'home' && z.id === 'home') || (b.dataset.nav === 'work' && z.kind === 'project') || (b.dataset.nav === 'gsi' && z.kind === 'job'))))
-  actBtn.classList.toggle('is-on', !!z && (z.id === 'home' || !!z.url)); actBtn.textContent = z?.url ? 'Visit ↗' : 'Next'
+  actBtn.classList.toggle('is-on', !!z && (z.id === 'home' || !!z.url || z.kind === 'game')); actBtn.textContent = z?.url ? 'Visit ↗' : z?.kind === 'game' ? 'Go' : 'Next'
   if (!z) { panel.classList.remove('is-on'); locEl.innerHTML = ''; return }
   locEl.innerHTML = `Now at <b>${z.name}</b>`; audio.blip(); $('#srLive').textContent = `Now at ${z.name}`
   if (trial.on && trial.cd <= 0 && z.id === TRIAL[trial.i]) hitCheckpoint()
@@ -359,6 +364,7 @@ function enterZone(z) {
 }
 function interact() {
   if (!active) return
+  if (active.kind === 'game') return runAct(active.act)
   if (active.id === 'home') return nextLine()
   if (active.url) { track('project_open', { project: active.id, via: 'key' }); window.open(active.url, '_blank', 'noopener') }
 }
@@ -388,9 +394,10 @@ function drawMini() {
   const S = 300, c = S / 2, k = MAP_K
   mctx.clearRect(0, 0, S, S)
   if (mapCanvas) mctx.drawImage(mapCanvas, 0, 0)
-  for (const z of ZONES) { if (z.silent || z.kind === 'project') continue; mctx.fillStyle = z.id === active?.id ? '#fff' : z.kind === 'job' ? '#7a5cff' : '#ff2d8a'; mctx.beginPath(); mctx.arc(c + z.pos[0] * k, c + z.pos[1] * k, 5.5, 0, 7); mctx.fill() }
+  for (const z of ZONES) { if (z.silent || z.kind === 'project') continue; mctx.fillStyle = z.id === active?.id ? '#fff' : z.kind === 'job' ? '#7a5cff' : z.kind === 'game' ? '#7ee0ff' : '#ff2d8a'; mctx.beginPath(); mctx.arc(c + z.pos[0] * k, c + z.pos[1] * k, z.id === 'stunt' ? 4 : 5.5, 0, 7); mctx.fill() }
   mctx.fillStyle = 'rgba(255,45,138,.85)'; for (const p of projZones) mctx.fillRect(c + p.pos[0] * k - 3, c + p.pos[1] * k - 3, 6, 6)
   mctx.fillStyle = '#a892ff'; for (const o of orbs) if (o.alive) { mctx.beginPath(); mctx.arc(c + o.x * k, c + o.z * k, 2.6, 0, 7); mctx.fill() }
+  modes?.overlay(mctx, c, k)
   mctx.save(); mctx.translate(c + car.pos.x * k, c + car.pos.z * k); mctx.rotate(-car.ang); mctx.fillStyle = '#fff'; mctx.strokeStyle = '#000'; mctx.lineWidth = 2; mctx.beginPath(); mctx.moveTo(0, -10); mctx.lineTo(7, 8); mctx.lineTo(-7, 8); mctx.closePath(); mctx.fill(); mctx.stroke(); mctx.restore()
   mctx.strokeStyle = 'rgba(255,45,138,.5)'; mctx.lineWidth = 3; mctx.beginPath(); mctx.arc(c, c, c - 2, 0, 7); mctx.stroke()
 }
@@ -438,7 +445,7 @@ const setBeacon = () => { const z = zoneById(TRIAL[trial.i]); beacon.position.se
 function startTrial() {
   if (!ready) return
   if (!started) startGame()
-  cancelTour(); warp('home', true)
+  cancelTour(); modes?.cancel(); warp('home', true)
   Object.assign(trial, { on: true, i: 0, t: 0, cd: 3.6, step: 0 }); beacon.visible = true; setBeacon(); tourChip.classList.add('is-on'); track('trial_start')
 }
 function stopTrial(msg) { if (!trial.on) return; trial.on = false; beacon.visible = false; tourChip.classList.remove('is-on'); if (msg) toast(msg, 3000) }
@@ -465,7 +472,7 @@ const paintTour = () => { tourChip.innerHTML = `<b>Auto tour</b> ${Math.min(tour
 function startTour() {
   if (!ready) return
   if (!started) startGame()
-  warp('home', true); tour.on = true; tour.i = 0; tour.wait = 0; tour.stuck = 0
+  modes?.cancel(); warp('home', true); tour.on = true; tour.i = 0; tour.wait = 0; tour.stuck = 0
   tourChip.classList.add('is-on'); paintTour(); track('tour_start')
 }
 function cancelTour(msg) { if (!tour.on) return; tour.on = false; tourChip.classList.remove('is-on'); if (msg) toast(msg, 3200) }
@@ -506,6 +513,7 @@ function autopilot(dt) {
   return { f: car.speed < vmax ? 1 : car.speed > vmax + 3 ? -0.5 : 0.15, t: clamp(-err * 2.4, -1, 1), boost: d > 70 && align > 0.97 && corner > 0.9 && car.energy > 0.6, drift: false }
 }
 function getInput(dt) {
+  if (menuOpen() || modes?.locked) return IDLE
   if (trial.on && trial.cd > 0) return IDLE
   if (tour.on) { if (userActive()) cancelTour(); else return autopilot(dt) }
   let f = (keys.KeyW || keys.ArrowUp ? 1 : 0) - (keys.KeyS || keys.ArrowDown ? 1 : 0)
@@ -527,22 +535,23 @@ function updateCar(dt, t) {
   const air = car.air
   const fx = -Math.sin(car.ang), fz = -Math.cos(car.ang)
   const fwdSpeed = car.vel.x * fx + car.vel.y * fz
-  const acc = (inp.f > 0 ? 30 : inp.f < 0 ? (fwdSpeed > 1 ? 46 : 20) : 0) * (1 + car.boost * 0.9) * (air ? 0.08 : 1)
+  const st = car.stats
+  const acc = (inp.f > 0 ? st.acc : inp.f < 0 ? (fwdSpeed > 1 ? st.acc * 1.5 : st.acc * 0.66) : 0) * (1 + car.boost * 0.9) * (air ? 0.08 : 1)
   car.vel.x += fx * inp.f * acc * dt; car.vel.y += fz * inp.f * acc * dt
   // lateral grip (drifts when handbrake) — none in the air
   const rx = -fz, rz = fx
   const latSpeed = car.vel.x * rx + car.vel.y * rz
-  const grip = air ? 0 : inp.drift ? 1.1 : 7.5
+  const grip = air ? 0 : inp.drift ? 1.1 : st.grip
   const kill = latSpeed * (1 - Math.exp(-grip * dt))
   car.vel.x -= rx * kill; car.vel.y -= rz * kill
   const drag = air ? 0.04 : inp.f === 0 ? 1.6 : 0.35
-  const sp = Math.hypot(car.vel.x, car.vel.y), max = 27 * (1 + car.boost * 0.55)
+  const sp = Math.hypot(car.vel.x, car.vel.y), max = st.max * (1 + car.boost * 0.55)
   const dk = Math.exp(-(drag + (sp > max ? (sp - max) * 0.4 : 0)) * dt)
   car.vel.x *= dk; car.vel.y *= dk
   car.speed = car.vel.x * fx + car.vel.y * fz
   audio.engine(clamp(Math.abs(car.speed) / 30, 0, 1), air ? 0.2 : Math.abs(inp.f), car.boost)
   const steer = clamp(car.speed / 5, -1, 1) * (inp.drift ? 1.5 : 1) * (air ? 0 : 1)
-  car.ang -= car.turn * 2.15 * steer * dt
+  car.ang -= car.turn * st.turn * steer * dt
   const px = car.pos.x, pz = car.pos.z
   car.pos.x += car.vel.x * dt; car.pos.z += car.vel.y * dt
   for (const q of pads) {
@@ -738,6 +747,11 @@ function updateCamera(dt, t) {
     camera.position.lerp(camDes, damp(dt, 2)); tgt.set(0, 4, -4)
     camLook.lerp(tgt, damp(dt, 3)); camera.lookAt(camLook); return
   }
+  if (garage?.isOpen) { // showroom: slow orbit around the parked car
+    menuAng += dt * 0.4
+    camDes.set(car.pos.x + Math.sin(menuAng) * 8.5, car.y + 3, car.pos.z + Math.cos(menuAng) * 8.5)
+    camera.position.lerp(camDes, damp(dt, 3)); tgt.set(car.pos.x, car.y + 0.9, car.pos.z); camLook.lerp(tgt, damp(dt, 6)); camera.lookAt(camLook); return
+  }
   const port = clamp(1.15 - camera.aspect, 0, 0.7)
   const dist = 11 + sn * 3.5 + port * 7, h = 5.4 + sn * 1.5 + port * 3.5
   camDes.set(car.pos.x - fx * dist, h + car.viewY, car.pos.z - fz * dist)
@@ -797,11 +811,16 @@ function tick() {
   // zones
   let best = null, bd = 1e9
   if (started) for (const z of ZONES) { if (z.silent) continue; const d = Math.hypot(car.pos.x - z.pos[0], car.pos.z - z.pos[1]); if (d < z.r && d / z.r < bd) { bd = d / z.r; best = z } }
-  if (started && best?.id !== active?.id) enterZone(best)
+  if (started) {
+    if (modes?.active) { if (active) enterZone(null) } // a race / delivery is running: no zone panels
+    else if (zoneMute > 0) zoneMute -= dt
+    else if (best?.id !== active?.id) enterZone(best)
+  }
   avatarNear = lerp(avatarNear, active?.id === 'home' ? 1 : 0, damp(dt, 4))
   for (const b of boards) { const on = active?.id === b.id; if (on) { if (t - b.live.last > (isMobile ? 1 / 12 : 1 / 24)) { b.live.render(t); b.live.last = t } b.wasOn = true } else if (b.wasOn) { b.live.render(0); b.wasOn = false } b.g.scale.setScalar(lerp(b.g.scale.x, on ? 1.08 : 1, damp(dt, 5))); b.frame.material.emissiveIntensity = lerp(b.frame.material.emissiveIntensity, on ? 4.5 : 1.6, damp(dt, 5)) }
 
-  updateTrial(dt)
+  updateTrial(dt); modes?.update(dt, t)
+  if (frame % 2 === 0) updateArrow()
   updateCamera(dt, t)
   const fu = fx.uniforms; fu.uTime.value = t % 100; fu.uSpeed.value = clamp(Math.abs(car.speed) / 30, 0, 1); fu.uBoost.value = Math.max(car.boost * 0.9, car.padKick); fu.uHit.value = clamp(shake * 1.6, 0, 1)
   if (frame % 2 === 0 && started) drawMini()
@@ -814,6 +833,50 @@ function onResize() {
   renderer.setSize(w, h, false); composer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix()
 }
 addEventListener('resize', onResize)
+
+/* ------------------------------------------------------------------ games: modes, play hub, garage */
+let modes = null, garage = null, zoneMute = 0
+const hubEl = $('#hub'), hubList = $('#hubList'), arrowEl = $('#navArrow'), arrowSvg = arrowEl.querySelector('svg'), arrowDist = $('#navDist')
+const menuOpen = () => !!(garage?.isOpen || hubEl.classList.contains('is-on'))
+function closeMenus() { hubEl.classList.remove('is-on'); hubEl.hidden = true; garage?.close() }
+function placeCar(x, z, ang) {
+  car.pos.set(x, 0, z); car.vel.set(0, 0); car.ang = ang; car.y = car.viewY = city.BASE; car.air = false; car.vy = car.vyG = car.spinP = car.spinR = 0; camSnap = true
+  const f = $('#flash'); f.classList.remove('is-on'); void f.offsetWidth; f.classList.add('is-on')
+}
+const fmtT = (s) => `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStart(4, '0')}`
+function paintHub() {
+  const rb = modes?.race.best, db = modes?.del.best
+  const items = [
+    ['race', 'Street Race', `3 laps around the avenues vs 3 rivals${rb ? ' · best ' + fmtT(rb) : ''}`, 'Race'],
+    ['delivery', 'Delivery Rush', `Five parcels against the clock${db ? ' · best $' + db.toLocaleString('en-US') : ''}`, 'Start'],
+    ['stunt', 'Stunt Park', 'Ramps, plateaus and hoops — chain flips, rolls and drifts', 'Go'],
+    ['trial', 'CV Time Trial', `Speedrun the résumé zones${best ? ' · best ' + best.toFixed(1) + 's' : ''}`, 'Start'],
+    ['tour', 'Auto Tour', 'Sit back — the car drives you through my work', 'Play'],
+    ['garage', 'Garage', `Eight cars, each drives differently · you own ${garage ? garage.owned.size : 1}`, 'Open'],
+  ]
+  hubList.innerHTML = items.map(([id, name, d, b]) => `<li><b>${name}</b><small>${d}</small><button class="mono" data-run="${id}">${b}</button></li>`).join('')
+  $('#hubCash').textContent = score ? score.cash.toLocaleString('en-US') : '0'
+}
+function openHub() { if (!started) return; garage?.close(); hubEl.hidden = false; hubEl.classList.add('is-on'); paintHub(); track('hub_open') }
+function toggleHub() { hubEl.classList.contains('is-on') ? closeMenus() : openHub() }
+function runAct(act) {
+  if (!started || !ready) return
+  if (act === 'garage') { hubEl.classList.remove('is-on'); hubEl.hidden = true; garage?.open(); return }
+  closeMenus()
+  if (act === 'race') modes.startRace()
+  else if (act === 'delivery') modes.startDelivery()
+  else if (act === 'stunt') { cancelTour(); stopTrial(); modes.cancel(); placeCar(-144, -44, Math.PI); toast('Stunt Park — floor it over the ramp', 2200) }
+  else if (act === 'trial') startTrial()
+  else if (act === 'tour') startTour()
+}
+/** HUD compass arrow pointing at the active objective (checkpoint / parcel). */
+function updateArrow() {
+  const tg = started ? modes?.target() : null
+  if (!tg) { arrowEl.classList.remove('is-on'); return }
+  const dx = tg.x - car.pos.x, dz = tg.z - car.pos.z
+  let err = Math.atan2(-dx, -dz) - car.ang; err = Math.atan2(Math.sin(err), Math.cos(err))
+  arrowEl.classList.add('is-on'); arrowSvg.style.transform = `rotate(${-err}rad)`; arrowDist.textContent = Math.round(Math.hypot(dx, dz)) + ' m'
+}
 
 /* ------------------------------------------------------------------ time of day + weather */
 let atmo = null
@@ -893,6 +956,7 @@ function applyModels(m) {
       const mixer = new THREE.AnimationMixer(m.car.scene), action = mixer.clipAction(m.car.clips[0]); action.play(); action.paused = true; action.time = 0; mixer.update(0)
       car.aero = { mixer, action, dur: m.car.clips[0].duration, t: 0 }
     }
+    car.hero = m.car.object; car.heroWheels = car.mw; car.heroAero = car.aero
     pool.scale.setScalar(1.25)
   }
   if (m.avatar) {
@@ -901,8 +965,9 @@ function applyModels(m) {
     if (m.avatar.clips.length) { const mixer = new THREE.AnimationMixer(m.avatar.scene); mixer.clipAction(m.avatar.clips[0]).play(); tickers.push((t, dt) => mixer.update(dt)) }
   }
 }
+const KENNEY = { title: 'City, car, nature & racing kits', author: 'Kenney', license: 'CC0', url: 'https://kenney.nl/assets' }
 function showCredits(list) {
-  if (!list.length) return
+  list = [...list, KENNEY]
   const box = $('#credits'); box.innerHTML = '<b class="mono">3D model credits</b>' + list.map((c) => `<p>${c.title} — ${c.author ? 'by ' + c.author : ''} ${c.license ? '· ' + c.license : ''} ${c.url ? `<a href="${c.url}" target="_blank" rel="noopener">source ↗</a>` : ''}</p>`).join('')
   const b = $('#creditsBtn'); b.hidden = false; b.addEventListener('click', () => box.classList.toggle('is-on'))
 }
@@ -929,9 +994,18 @@ async function boot() {
   envTex = neonEnv()
   spawnProps(city, kits); stations.buildAll(); TOUR = buildTourRoute(city, ZONES); buildMinimap(city); setPct(90)
   traffic = createTraffic({ scene, kits, city, count: isMobile ? 14 : 28, plainMat }); traffic.init(0, 28)
+  modes = createModes({
+    scene, city, car, traffic, score, toast, audio, sparks, kits, plainMat, track, placeCar, frame: () => frame,
+    chip: (on) => tourChip.classList.toggle('is-on', on), chipHTML: (h) => { tourChip.innerHTML = h },
+    cancelOthers: (m) => { cancelTour(); stopTrial(); modes.cancel(m) },
+    showPanel: (html) => { panel.innerHTML = html; panel.classList.add('is-on'); zoneMute = 9; decorate() }, hideZonePanel: () => panel.classList.remove('is-on'),
+  })
+  garage = createGarage({ car, kits, plainMat, score, toast, audio, track, isMobile })
+  const LANDMARKS = { race: ['RACE', '3 LAPS · $600'], delivery: ['DELIVERY', 'PARCELS · CASH'], garage: ['GARAGE', '8 CARS'], stunt: ['STUNT PARK', 'RAMPS · HOOPS'] }
+  for (const z of ZONES) if (LANDMARKS[z.id]) modes.addLandmark({ x: z.pos[0], z: z.pos[1], label: LANDMARKS[z.id][0], sub: LANDMARKS[z.id][1], color: z.color, radius: z.id === 'stunt' ? 9 : 7 })
   atmo = createAtmosphere({ scene, sky, hemi, sun: moon, bloom, renderer, uniforms, camera, isMobile, audio, city }); atmo.setEnv(envTex); atmo.update(0, 0); sky.bake(true); paintClock()
-  if (import.meta.env.DEV) { window.__city = city; window.__atmo = atmo }
-  const models = await modelsP; applyModels(models); showCredits(models.credits); setPct(97)
+  if (import.meta.env.DEV) { window.__city = city; window.__atmo = atmo; window.__kits = kits; window.__modes = modes; window.__garage = garage; window.__score = score }
+  const models = await modelsP; applyModels(models); garage.init(); showCredits(models.credits); setPct(97)
   renderer.compile(scene, camera); composer.render(); setPct(100)
   ready = true
   btn.disabled = false; $('#startLabel').textContent = coarse ? 'Tap to start' : 'Press Enter to start'

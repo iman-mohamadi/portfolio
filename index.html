@@ -69,6 +69,13 @@
     <div class="tourchip mono" id="tourChip"></div>
     <div class="hud__hint mono" id="hint">Drive to a glowing zone <span class="dim">·</span> <kbd>1</kbd>–<kbd>6</kbd> travel <span class="dim">·</span> <kbd>T</kbd> auto tour <span class="dim">·</span> grab the blue pads for boost</div>
   </div>
+  <div class="navarrow mono" id="navArrow" aria-hidden="true"><svg viewBox="0 0 40 40" width="40" height="40"><path d="M20 4 L34 32 L20 25 L6 32 Z" fill="currentColor"/></svg><span id="navDist"></span></div>
+  <section class="menu" id="hub" hidden role="dialog" aria-modal="true" aria-label="Play menu">
+    <div class="menu__card"><header><h2>Play</h2><button class="mono" data-close aria-label="Close menu">Close ✕</button></header><ul id="hubList" class="hub__list"></ul><p class="mono dim">Cash <b id="hubCash">0</b> · earn it from chains, jumps, races and deliveries</p></div>
+  </section>
+  <section class="menu garage" id="garage" hidden role="dialog" aria-label="Garage">
+    <div class="menu__card"><header><h2>Garage</h2><span class="mono">$ <b id="garageCash">0</b></span><button class="mono" data-close aria-label="Close garage">Done ✕</button></header><ul id="garageList" class="garage__list"></ul></div>
+  </section>
   <aside class="panel" id="panel" aria-live="polite"></aside>
   <div role="region" aria-label="Notifications"><div class="toast mono" id="toast" role="status"></div></div>
   <div class="sr" id="srLive" aria-live="polite"></div>

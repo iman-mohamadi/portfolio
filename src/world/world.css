@@ -215,3 +215,33 @@ kbd{font:400 .68rem var(--mono);padding:.15em .5em;border:1px solid var(--faint)
 #text-version:target h1{font-weight:200;font-size:clamp(1.8rem,5vw,3rem);letter-spacing:-.04em;margin-bottom:1rem}#text-version:target h2{margin:1.6rem 0 .5rem;font-weight:300}
 #text-version:target a{color:var(--pink);text-decoration:underline}#text-version:target ul{padding-left:1.2rem}
 .closetxt{display:none}#text-version:target .closetxt{display:inline-block;margin-bottom:1.2rem;padding:.6rem 1rem;border:1px solid var(--pink);border-radius:99px;text-decoration:none!important}
+
+/* ---- play hub + garage ---- */
+.menu{position:fixed;inset:0;z-index:30;display:none;align-items:center;justify-content:flex-start;padding:calc(var(--sat) + 70px) var(--pad) calc(var(--sab) + 20px);pointer-events:none}
+.menu.is-on,.menu:not([hidden]).is-on{display:flex}
+.menu[hidden]{display:none}
+.menu__card{pointer-events:auto;width:min(460px,100%);max-height:100%;overflow:auto;padding:1.1rem 1.1rem 1rem;border:1px solid rgba(255,45,138,.35);border-radius:18px;background:rgba(9,9,14,.86);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:0 20px 60px rgba(0,0,0,.5);color:var(--fg)}
+.menu__card header{display:flex;align-items:center;gap:.8rem;margin-bottom:.8rem}
+.menu__card h2{font:300 1.6rem/1 'Inter Tight',sans-serif;margin:0;flex:1}
+.menu__card header button{background:transparent;border:1px solid var(--faint);color:var(--dim);border-radius:99px;padding:.35rem .8rem;cursor:pointer;font-size:.62rem;letter-spacing:.1em}
+.menu__card header button:hover{color:#fff;border-color:#fff}
+.hub__list,.garage__list{list-style:none;margin:0;padding:0;display:grid;gap:.6rem}
+.hub__list li{display:grid;grid-template-columns:1fr auto;gap:.2rem .8rem;align-items:center;padding:.75rem .85rem;border:1px solid var(--faint);border-radius:12px;background:rgba(255,255,255,.03)}
+.hub__list b{font-weight:400;font-size:1rem}.hub__list small{grid-column:1;color:var(--dim);font-size:.72rem;line-height:1.4}
+.hub__list button,.garage__list button{grid-row:1/span 2;grid-column:2;background:#ff2d8a;border:0;color:#0a0a10;border-radius:99px;padding:.5rem 1rem;font-size:.66rem;letter-spacing:.08em;cursor:pointer;text-transform:uppercase}
+.hub__list button:hover,.garage__list button:hover:not(:disabled){filter:brightness(1.12)}
+.menu .dim{color:var(--dim);font-size:.66rem;margin:.9rem 0 0}.menu .dim b{color:#ffd27a;font-weight:400}
+.garage__list li{padding:.75rem .85rem;border:1px solid var(--faint);border-radius:12px;background:rgba(255,255,255,.03);cursor:pointer;transition:border-color .2s,background .2s}
+.garage__list li.is-on{border-color:#ff2d8a;background:rgba(255,45,138,.08)}
+.garage__list li.locked .hd b{color:#cfd0da}
+.garage__list .hd{display:flex;align-items:baseline;justify-content:space-between;gap:.6rem}.garage__list .hd b{font-weight:400}.garage__list .hd small{color:var(--dim);font-size:.6rem;letter-spacing:.1em;text-transform:uppercase}
+.garage__list p{margin:.25rem 0 .55rem;color:var(--dim);font-size:.74rem;line-height:1.4}
+.garage__list .bars{display:grid;grid-template-columns:1fr 1fr;gap:.3rem .9rem;margin-bottom:.6rem}
+.garage__list .bar{display:flex;align-items:center;gap:.5rem;font-size:.58rem;color:var(--dim);letter-spacing:.06em;text-transform:uppercase}.garage__list .bar span{width:4.2rem}
+.garage__list .bar i{flex:1;height:4px;border-radius:2px;background:rgba(255,255,255,.12);overflow:hidden}.garage__list .bar em{display:block;height:100%;background:linear-gradient(90deg,#7a5cff,#ff2d8a)}
+.garage__list button{grid-row:auto;grid-column:auto;width:100%}
+.garage__list button:disabled{background:rgba(255,255,255,.1);color:var(--dim);cursor:default}
+.garage__list button.buy:not(:disabled){background:#ffd27a}
+.navarrow{position:fixed;z-index:12;left:50%;bottom:calc(var(--sab) + 92px);transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:.15rem;color:#7ee0ff;opacity:0;transition:opacity .25s;pointer-events:none;font-size:.62rem;letter-spacing:.1em;filter:drop-shadow(0 2px 8px rgba(0,0,0,.6))}
+.navarrow.is-on{opacity:.95}.navarrow svg{transition:transform .08s linear}
+@media (max-width:760px){.menu{padding-top:calc(var(--sat) + 60px);justify-content:center}.navarrow{bottom:calc(var(--sab) + 170px)}.garage__list .bars{grid-template-columns:1fr}}

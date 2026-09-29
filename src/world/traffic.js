@@ -10,11 +10,11 @@ export const LANE = 3.2
 const norm = (dx, dz) => { const l = Math.hypot(dx, dz) || 1; return [dx / l, dz / l] }
 
 /** Waypoints for passing node `n` coming from `prev`, heading on to `next` (all {x,z}). */
-export function passNode(prev, n, next) {
+export function passNode(prev, n, next, lane = LANE) {
   const [ix, iz] = norm(n.x - prev.x, n.z - prev.z), [ox, oz] = norm(next.x - n.x, next.z - n.z)
   const rix = -iz, riz = ix, rox = -oz, roz = ox
-  if (Math.abs(ix - ox) < 1e-3 && Math.abs(iz - oz) < 1e-3) return [{ x: n.x + rix * LANE, z: n.z + riz * LANE, turn: 0 }]
-  const A = { x: n.x - ix * 9 + rix * LANE, z: n.z - iz * 9 + riz * LANE }, X = { x: n.x + rix * LANE + rox * LANE, z: n.z + riz * LANE + roz * LANE }, C = { x: n.x + ox * 9 + rox * LANE, z: n.z + oz * 9 + roz * LANE }
+  if (Math.abs(ix - ox) < 1e-3 && Math.abs(iz - oz) < 1e-3) return [{ x: n.x + rix * lane, z: n.z + riz * lane, turn: 0 }]
+  const A = { x: n.x - ix * 9 + rix * lane, z: n.z - iz * 9 + riz * lane }, X = { x: n.x + rix * lane + rox * lane, z: n.z + riz * lane + roz * lane }, C = { x: n.x + ox * 9 + rox * lane, z: n.z + oz * 9 + roz * lane }
   const cross = ix * oz - iz * ox // sign tells left/right; magnitude is 1 for a perfect right angle
   const out = [{ ...A, turn: 1 }]
   for (const t of [0.25, 0.5, 0.75]) { const a = (1 - t) * (1 - t), b = 2 * (1 - t) * t, c = t * t; out.push({ x: a * A.x + b * X.x + c * C.x, z: a * A.z + b * X.z + c * C.z, turn: 1, right: cross > 0 }) }
@@ -22,12 +22,12 @@ export function passNode(prev, n, next) {
   return out
 }
 /** Waypoints for a whole node route (list of {x,z}); a U-turn at a dead end is not expected on circuits. */
-export function routeWaypoints(nodes, loop = false) {
+export function routeWaypoints(nodes, loop = false, lane = LANE) {
   const out = [], n = nodes.length
   for (let i = 0; i < n; i++) {
     const prev = nodes[(i - 1 + n) % n], cur = nodes[i], next = nodes[(i + 1) % n]
     if (!loop && (i === 0 || i === n - 1)) { out.push({ x: cur.x, z: cur.z, turn: 0 }); continue }
-    out.push(...passNode(prev, cur, next))
+    out.push(...passNode(prev, cur, next, lane))
   }
   return out
 }
@@ -79,6 +79,7 @@ export function createTraffic({ scene, kits, city, count, plainMat, seed = 31 })
   const lights = new THREE.Points(lg, new THREE.PointsMaterial({ size: 1.9, map: glowTex, vertexColors: true, transparent: true, opacity: 0.4, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }))
   lights.frustumCulled = false; scene.add(lights)
 
+  let active = true
   // ---- placing & routing ----
   function extend(a) {
     while (a.wp.length < 7) {
@@ -102,10 +103,14 @@ export function createTraffic({ scene, kits, city, count, plainMat, seed = 31 })
   }
   return {
     agents, RADIUS,
+    /** Pull all traffic off the streets (races close the roads) or put it back. */
+    setActive(on) { active = on; groups.forEach((g) => g.di.use(on ? g.agents.length : 0)); lights.visible = on },
+    get active() { return active },
     /** Scatter the initial fleet around a point. */
     init(cx, cz) { for (const a of agents) { if (!place(a, cx, cz, 30, 260)) place(a, cx, cz, 0, 1e9) } },
     /** Ambient traffic step. `car` is the player ({pos,vel,speed,y,radius}); `fx` hooks: { onHit(agent, nx, nz, rel), onNear(agent) }. */
     update(dt, car, night, fx) {
+      if (!active) return
       const cars = agents
       for (const a of cars) {
         const fwx = -Math.sin(a.ang), fwz = -Math.cos(a.ang)
