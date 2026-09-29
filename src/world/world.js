@@ -31,6 +31,10 @@ const coarse = matchMedia('(pointer:coarse)').matches
 const isMobile = coarse || Math.min(innerWidth, innerHeight) < 600
 const forceHQ = qs.get('quality') === 'high'
 const lowEnd = !forceHQ && ((isMobile && ((navigator.hardwareConcurrency || 8) <= 4 || (navigator.deviceMemory || 8) <= 3)) || gpuProbe.soft)
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches
+let qMode = qs.get('quality') || ''
+if (!['auto', 'high', 'med', 'low'].includes(qMode)) { try { qMode = localStorage.getItem('im-quality') || 'auto' } catch (_) { qMode = 'auto' } }
+if (!['auto', 'high', 'med', 'low'].includes(qMode)) qMode = 'auto'
 const WORLD_R = 88
 const PINK = 0xff2d8a, VIOLET = 0x7a5cff
 const F_SANS = "'Inter Tight', sans-serif", F_SERIF = "'Instrument Serif', serif", F_MONO = "'JetBrains Mono', monospace"
@@ -60,10 +64,10 @@ composer.setPixelRatio(pixelRatio)
 composer.setSize(innerWidth, innerHeight)
 composer.addPass(new RenderPass(scene, camera))
 const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth / 2, innerHeight / 2), 0.55, 0.5, 0.6)
-bloom.enabled = !lowEnd
+bloom.enabled = qMode === 'auto' ? !lowEnd : qMode !== 'low'
 composer.addPass(bloom)
 composer.addPass(new OutputPass())
-const fx = createFxPass(); fx.enabled = !lowEnd; composer.addPass(fx)
+const fx = createFxPass(); fx.enabled = !reduceMotion && (qMode === 'auto' ? !lowEnd : qMode !== 'low'); composer.addPass(fx)
 renderer.info.autoReset = false
 const BASE_RATIO = pixelRatio
 
@@ -514,6 +518,8 @@ const stick = { on: false, x: 0, y: 0, id: null }
 let boostBtn = false, driftBtn = false
 addEventListener('keydown', (e) => {
   if (e.metaKey || e.ctrlKey || e.altKey) return
+  const tg = e.target?.tagName
+  if ((tg === 'BUTTON' || tg === 'A') && (e.code === 'Space' || e.code === 'Enter')) return
   keys[e.code] = true
   if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault()
   if (!started) { if (e.code === 'Enter' || e.code === 'Space') startGame(); return }
@@ -579,7 +585,7 @@ function enterZone(z) {
   navEl.querySelectorAll('button').forEach((b) => b.classList.toggle('is-on', !!z && (b.dataset.nav === z.id || (b.dataset.nav === 'home' && z.id === 'home') || (b.dataset.nav === 'work' && z.kind === 'project') || (b.dataset.nav === 'gsi' && z.kind === 'job'))))
   actBtn.classList.toggle('is-on', !!z && (z.id === 'home' || !!z.url)); actBtn.textContent = z?.url ? 'Visit ↗' : 'Next'
   if (!z) { panel.classList.remove('is-on'); locEl.innerHTML = ''; return }
-  locEl.innerHTML = `Now at <b>${z.name}</b>`; audio.blip()
+  locEl.innerHTML = `Now at <b>${z.name}</b>`; audio.blip(); $('#srLive').textContent = `Now at ${z.name}`
   if (trial.on && trial.cd <= 0 && z.id === TRIAL[trial.i]) hitCheckpoint()
   if (!seen.has(navKey(z))) track('zone_first_visit', { zone: navKey(z) }); seen.add(navKey(z)); navEl.querySelectorAll('[data-nav]').forEach((b) => b.classList.toggle('seen', seen.has(b.dataset.nav)))
   if (!allSeen && NAV.every((n) => seen.has(n.id))) { allSeen = true; setTimeout(() => toast('You’ve seen everything — let’s talk →', 4500), 1800) }
@@ -881,9 +887,10 @@ function updateCamera(dt, t) {
   if (camSnap) { camera.position.copy(camDes); camLook.copy(tgt); camSnap = false }
   camera.position.lerp(camDes, damp(dt, 3.4)); camLook.lerp(tgt, damp(dt, 7))
   avoidObstacles()
+  if (reduceMotion) shake = 0
   if (shake > 0) { shake -= dt; camera.position.x += (Math.random() - 0.5) * shake; camera.position.y += (Math.random() - 0.5) * shake }
   camera.lookAt(camLook)
-  const fov = 58 + port * 30 + sn * 9 + car.boost * 8
+  const fov = 58 + port * 30 + (reduceMotion ? 2 : sn * 9 + car.boost * 8)
   if (Math.abs(camera.fov - fov) > 0.05) { camera.fov = lerp(camera.fov, fov, damp(dt, 4)); camera.updateProjectionMatrix() }
 }
 
@@ -896,11 +903,13 @@ const drs = { level: 0, levels: [1, 0.85, 0.72, 0.6], avg: 1 / 60, below: 0, abo
 function setRes(l) {
   drs.level = l; pixelRatio = Math.max(0.75, BASE_RATIO * drs.levels[l]); pxU.value = pixelRatio
   renderer.setPixelRatio(pixelRatio); composer.setPixelRatio(pixelRatio); composer.setSize(innerWidth, innerHeight)
-  bloom.enabled = fx.enabled = !lowEnd && l < 3
+  const fxOn = qMode === 'auto' ? !lowEnd && l < 3 : qMode !== 'low'
+  bloom.enabled = fxOn; fx.enabled = fxOn && !reduceMotion
   drs.settle = 1.5
 }
 /** Dynamic resolution: step the render scale down when the frame rate can't hold, back up when there is headroom. */
 function updateDRS(dt) {
+  if (qMode !== 'auto') return
   if (!started) { if (frame > 40) drs.minDt = Math.min(drs.minDt, dt); return }
   if (frame - startFrame < 150) return
   if (drs.settle > 0) { drs.settle -= dt; drs.avg = dt; return }
@@ -975,6 +984,15 @@ function startGame() {
 }
 const pctEl = $('#loadPct'), barEl = $('#loadBar'), btn = $('#startBtn')
 const setPct = (p) => { pctEl.textContent = Math.round(p); barEl.style.transform = `scaleX(${p / 100})` }
+const QUAL = { auto: [0, 'Auto'], high: [0, 'High'], med: [1, 'Med'], low: [3, 'Low'] }
+const qualBtn = $('#qualBtn')
+function applyQuality(mode, announce) {
+  qMode = mode; try { localStorage.setItem('im-quality', mode) } catch (_) { /* ignore */ }
+  setRes(mode === 'auto' ? (lowEnd ? 1 : 0) : QUAL[mode][0]); drs.settle = 3; drs.lock = 10
+  qualBtn.textContent = '⚙ ' + QUAL[mode][1]; track('quality_change', { mode }); if (announce) toast(`Graphics: ${QUAL[mode][1]}`, 1400)
+}
+qualBtn.addEventListener('click', () => { const order = ['auto', 'high', 'med', 'low']; applyQuality(order[(order.indexOf(qMode) + 1) % 4], true) })
+qualBtn.textContent = '⚙ ' + QUAL[qMode][1]
 const muteBtn = $('#muteBtn')
 const paintMute = () => { muteBtn.textContent = audio.muted ? '♪ off' : '♪ on'; muteBtn.setAttribute('aria-pressed', String(!audio.muted)) }
 muteBtn.addEventListener('click', () => { audio.setMuted(!audio.muted); paintMute() }); paintMute()
@@ -1038,7 +1056,8 @@ async function boot() {
   btn.disabled = false; $('#startLabel').textContent = coarse ? 'Tap to start' : 'Press Enter to start'
   btn.addEventListener('click', startGame)
   const tb = $('#tourBtn'); tb.disabled = false; tb.addEventListener('click', startTour)
-  if (lowEnd) setRes(1)
+  if (qMode !== 'auto') setRes(QUAL[qMode][0]); else if (lowEnd) setRes(1)
+  if (reduceMotion) $('#motionWarn').hidden = false
   if (coarse) btn.classList.add('is-touch')
   renderer.setAnimationLoop(tick)
 }

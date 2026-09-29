@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Iman Mohammadi — Drive My Portfolio</title>
   <meta name="description" content="Iman Mohammadi — senior front-end architect & WebGL specialist. This portfolio is a 3D world: drive around to explore my work, skills and career." />
   <meta name="theme-color" content="#050505" />
@@ -30,15 +30,17 @@
   <link rel="manifest" href="/manifest.webmanifest" />
 </head>
 <body>
+  <nav aria-label="Alternative version"><a class="skip mono" href="/classic.html">Skip 3D — open the accessible classic version</a></nav>
   <canvas id="world" aria-hidden="true"></canvas>
 
   <!-- Loading / start -->
-  <div class="start" id="start">
+  <div class="start" id="start" role="region" aria-label="Welcome">
     <div class="start__top mono"><span>Iman Mohammadi</span><a href="/classic.html">Classic view →</a></div>
     <div class="start__mid">
       <p class="mono start__tag">Senior Front-End Architect · WebGL &amp; 3D Web</p>
       <h1>Drive<br /><span class="serif">my portfolio</span></h1>
       <p class="start__lead">This site is a 3D world. Take the wheel, explore the zones and meet me along the way.</p>
+      <p class="start__warn mono" id="motionWarn" hidden>Your device asks for reduced motion — effects like screen shake and blur are turned down. The <a href="/classic.html">classic version</a> is calmer still.</p>
       <p class="start__warn mono" id="startWarn" hidden>No GPU detected — this will run slowly. The <a href="/classic.html">classic version</a> is much smoother here (or add <b>?quality=high</b> to force full quality).</p>
       <div class="start__cta"><button class="start__btn mono" id="startBtn" disabled><span id="startLabel">Loading world… <b id="loadPct">0</b>%</span></button>
       <button class="start__btn start__btn--ghost mono" id="tourBtn" disabled>▶ Auto tour <em>— sit back, I'll drive</em></button></div>
@@ -56,10 +58,10 @@
   </div>
 
   <!-- HUD -->
-  <div class="hud" id="hud">
+  <div class="hud" id="hud" role="region" aria-label="Game controls">
     <div class="hud__brand mono"><a href="#" data-nav="home">IM<em>.</em></a><a href="/classic.html" class="dim">Classic view</a></div>
     <nav class="hud__nav mono" id="nav" aria-label="Fast travel"></nav>
-    <div class="hud__stats mono"><span>Orbs <b id="orbCount">0</b>/<span id="orbTotal">0</span></span><span class="dim" id="fps">— fps</span><span class="hud__btns"><button class="mono" id="photoBtn" aria-label="Save a photo">◉ Photo</button><button class="mono" id="muteBtn" aria-label="Toggle sound">♪ on</button><button class="mono" id="creditsBtn" hidden>Credits</button></span></div>
+    <div class="hud__stats mono"><span>Orbs <b id="orbCount">0</b>/<span id="orbTotal">0</span></span><span class="dim" id="fps">— fps</span><span class="hud__btns"><button class="mono" id="qualBtn" aria-label="Graphics quality">⚙ Auto</button><button class="mono" id="photoBtn" aria-label="Save a photo">◉ Photo</button><button class="mono" id="muteBtn" aria-label="Toggle sound">♪ on</button><button class="mono" id="creditsBtn" hidden>Credits</button></span></div>
     <div class="hud__loc mono" id="loc"></div>
     <canvas id="mini" width="300" height="300" aria-hidden="true"></canvas>
     <div class="hud__speed mono" id="speed"><b id="spd">000</b><span>km/h</span><i class="energy" title="Boost energy"><em id="energy"></em></i></div>
@@ -67,13 +69,14 @@
     <div class="hud__hint mono" id="hint">Drive to a glowing zone <span class="dim">·</span> <kbd>1</kbd>–<kbd>6</kbd> travel <span class="dim">·</span> <kbd>T</kbd> auto tour <span class="dim">·</span> grab the blue pads for boost</div>
   </div>
   <aside class="panel" id="panel" aria-live="polite"></aside>
-  <div class="toast mono" id="toast"></div>
-  <div class="flash" id="flash"></div>
+  <div role="region" aria-label="Notifications"><div class="toast mono" id="toast" role="status"></div></div>
+  <div class="sr" id="srLive" aria-live="polite"></div>
+  <div class="flash" id="flash" aria-hidden="true"></div>
 
-  <div class="gfxerr" id="gfxError" role="alert"><div><h2>Graphics interrupted</h2><p>Your GPU reset this page (it can happen on low memory or when switching apps).</p><p><button class="mono" onclick="location.reload()">Reload the world</button> <a class="mono" href="/classic.html">Open classic version</a></p></div></div>
+  <div class="gfxerr" id="gfxError" role="region" aria-label="Graphics error"><div role="alert"><h2>Graphics interrupted</h2><p>Your GPU reset this page (it can happen on low memory or when switching apps).</p><p><button class="mono" onclick="location.reload()">Reload the world</button> <a class="mono" href="/classic.html">Open classic version</a></p></div></div>
 
   <!-- Touch controls -->
-  <div class="touch" id="touch">
+  <div class="touch" id="touch" role="region" aria-label="Touch controls">
     <div class="touch__zone" id="stickZone"><div class="stick" id="stick"><i id="knob"></i></div></div>
     <div class="touch__btns">
       <button class="tbtn tbtn--act mono" id="actBtn">Next</button>
@@ -81,7 +84,7 @@
       <button class="tbtn tbtn--boost mono" id="boostBtn">Boost</button>
     </div>
   </div>
-  <div class="credits" id="credits"></div>
+  <div class="credits" id="credits" role="region" aria-label="Credits"></div>
 
   <!-- Same content, readable by screen readers / crawlers -->
   <main class="sr">

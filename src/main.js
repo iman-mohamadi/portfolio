@@ -31,13 +31,13 @@ lenis.on('scroll', ({ velocity }) => { gl.state.vel = velocity })
 /* ---------- split text ---------- */
 function splitChars(el) {
   const text = el.textContent
-  el.setAttribute('aria-label', text)
   el.textContent = ''
+  const sr = document.createElement('span'); sr.className = 'sr'; sr.textContent = text; el.appendChild(sr) // accessible text; visual chars are aria-hidden
   return [...text].map((c) => {
     const s = document.createElement('span')
     s.className = 'ch'
     s.setAttribute('aria-hidden', 'true')
-    s.textContent = c === ' ' ? ' ' : c
+    s.textContent = c === ' ' ? '\u00a0' : c
     el.appendChild(s)
     return s
   })
