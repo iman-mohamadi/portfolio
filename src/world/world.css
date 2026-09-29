@@ -179,3 +179,12 @@ kbd{font:400 .68rem var(--mono);padding:.15em .5em;border:1px solid var(--faint)
 .gfxerr p{color:var(--dim);margin-bottom:1.2rem}
 .gfxerr button,.gfxerr a{display:inline-block;padding:.8rem 1.3rem;border:1px solid var(--pink);border-radius:99px;background:rgba(255,45,138,.1);color:var(--fg);font:inherit;cursor:pointer;margin:.3rem}
 :focus-visible{outline:2px solid #7ee0ff;outline-offset:3px;border-radius:4px}
+
+/* conversion */
+.panel .cta{display:flex;flex-wrap:wrap;gap:.6rem;margin:.4rem 0 1rem}
+.panel .btn.primary{background:var(--pink);color:#08050a;border-color:var(--pink)}
+.panel .btn.primary:hover{background:#ff5aa5}
+.hud__nav .hire{background:var(--pink);color:#08050a!important;font-weight:400}
+.hud__nav .hire:hover{background:#ff5aa5}
+.hud__nav .hire.seen::after{display:none}
+.hud__nav button{white-space:nowrap}

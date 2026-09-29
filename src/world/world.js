@@ -7,6 +7,7 @@ import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js'
 import { createSky, createSkyline } from './sky.js'
 import { createFxPass, Trail } from './fx.js'
 import { createAudio } from './audio.js'
+import { initAnalytics, track } from './analytics.js'
 import { ZONES, PROJECTS, projZones, JOBS, SKILLS, STATS, DIALOGUE, ORB_NAMES, ARC, gateX, GATE_Z } from './content.js'
 
 const $ = (s) => document.querySelector(s)
@@ -487,6 +488,7 @@ orbMesh.frustumCulled = haloMesh.frustumCulled = false; scene.add(orbMesh, haloM
 $('#orbTotal').textContent = orbs.length
 
 /* ------------------------------------------------------------------ input */
+initAnalytics()
 const audio = createAudio()
 const buzz = (ms) => { if (navigator.userActivation?.hasBeenActive) navigator.vibrate?.(ms) }
 const keys = {}
@@ -521,7 +523,7 @@ document.addEventListener('gesturestart', (e) => e.preventDefault())
 /* ------------------------------------------------------------------ zones + UI */
 const NAV = ZONES.filter((z) => z.nav).map((z) => ({ id: z.id, label: z.nav }))
 const navEl = $('#nav')
-navEl.innerHTML = NAV.map((n, i) => `<button data-nav="${n.id}"><b>${i + 1}</b>${n.label}</button>`).join('') + '<button data-tour class="tour">▶ Tour</button>'
+navEl.innerHTML = NAV.map((n, i) => `<button data-nav="${n.id}"><b>${i + 1}</b>${n.label}</button>`).join('') + '<button data-tour class="tour">▶ Tour</button><button data-nav="contact" class="hire">Hire me</button>'
 const seen = new Set(); let allSeen = false
 const navKey = (z) => (z.kind === 'project' ? 'work' : z.kind === 'job' ? 'gsi' : z.id)
 document.addEventListener('click', (e) => { const t = e.target.closest('[data-tour]'); if (t) { e.preventDefault(); tour.on ? cancelTour() : startTour(); return } const b = e.target.closest('[data-nav]'); if (!b) return; e.preventDefault(); warp(b.dataset.nav) })
@@ -532,7 +534,7 @@ function decorate() {
   panel.classList.remove('is-min')
   if (isMobile && !panel.querySelector('.min')) panel.insertAdjacentHTML('afterbegin', '<button class="min" aria-label="Collapse panel">–</button>')
 }
-panel.addEventListener('click', (e) => { if (e.target.closest('.min')) { panel.classList.toggle('is-min'); e.target.closest('.min').textContent = panel.classList.contains('is-min') ? '+' : '–' } })
+panel.addEventListener('click', (e) => { const ev = e.target.closest('[data-ev]'); if (ev) track('link_click', { kind: ev.dataset.ev }); const pv = e.target.closest('a.btn[href^="http"]'); if (pv && active?.url) track('project_open', { project: active.id }); if (e.target.closest('.min')) { panel.classList.toggle('is-min'); e.target.closest('.min').textContent = panel.classList.contains('is-min') ? '+' : '–' } })
 function toast(t, ms = 1600) { toastEl.textContent = t; toastEl.classList.add('is-on'); clearTimeout(toast.t); toast.t = setTimeout(() => toastEl.classList.remove('is-on'), ms) }
 
 function typeLine() {
@@ -558,7 +560,7 @@ function enterZone(z) {
   actBtn.classList.toggle('is-on', !!z && (z.id === 'home' || !!z.url)); actBtn.textContent = z?.url ? 'Visit ↗' : 'Next'
   if (!z) { panel.classList.remove('is-on'); locEl.innerHTML = ''; return }
   locEl.innerHTML = `Now at <b>${z.name}</b>`; audio.blip()
-  seen.add(navKey(z)); navEl.querySelectorAll('[data-nav]').forEach((b) => b.classList.toggle('seen', seen.has(b.dataset.nav)))
+  if (!seen.has(navKey(z))) track('zone_first_visit', { zone: navKey(z) }); seen.add(navKey(z)); navEl.querySelectorAll('[data-nav]').forEach((b) => b.classList.toggle('seen', seen.has(b.dataset.nav)))
   if (!allSeen && NAV.every((n) => seen.has(n.id))) { allSeen = true; setTimeout(() => toast('You’ve seen everything — let’s talk →', 4500), 1800) }
   hintEl.classList.add('is-off')
   if (z.id === 'home') { if (!dlg.seen) { dlg.i = 0; panel.classList.add('is-on'); typeLine() } else { panel.innerHTML = `<div class="who"><i></i><b>Iman</b></div><p class="typed done">Welcome back! Head west for About, east for Skills, north for Work, south for my path.</p>`; panel.classList.add('is-on') } }
@@ -568,7 +570,7 @@ function enterZone(z) {
 function interact() {
   if (!active) return
   if (active.id === 'home') return nextLine()
-  if (active.url) window.open(active.url, '_blank', 'noopener')
+  if (active.url) { track('project_open', { project: active.id, via: 'key' }); window.open(active.url, '_blank', 'noopener') }
 }
 function warp(id, keepTour = false) {
   const z = ZONES.find((k) => k.id === id); if (!z || !started) return
@@ -625,14 +627,14 @@ function startTour() {
   if (!ready) return
   if (!started) startGame()
   warp('home', true); tour.on = true; tour.i = 0; tour.wait = 0; tour.stuck = 0
-  tourChip.classList.add('is-on'); paintTour()
+  tourChip.classList.add('is-on'); paintTour(); track('tour_start')
 }
 function cancelTour(msg) { if (!tour.on) return; tour.on = false; tourChip.classList.remove('is-on'); if (msg) toast(msg, 3200) }
 const userActive = () => keys.KeyW || keys.KeyA || keys.KeyS || keys.KeyD || keys.ArrowUp || keys.ArrowDown || keys.ArrowLeft || keys.ArrowRight || keys.Space || keys.ShiftLeft || keys.ShiftRight || stick.on || boostBtn || driftBtn
 const IDLE = { f: 0, t: 0, boost: false, drift: false }
 function autopilot(dt) {
   const w = TOUR[tour.i]
-  if (!w) { cancelTour('That was the tour — take the wheel and explore ✦'); return IDLE }
+  if (!w) { track('tour_complete'); cancelTour('That was the tour — take the wheel and explore ✦'); return IDLE }
   if (tour.wait > 0) { tour.wait -= dt; if (tour.wait <= 0) { tour.i++; paintTour() } return { f: car.speed > 1.5 ? -0.6 : 0, t: 0, boost: false, drift: false } }
   const dx = w.p[0] - car.pos.x, dz = w.p[1] - car.pos.z, d = Math.hypot(dx, dz)
   let err = Math.atan2(-dx, -dz) - car.ang; err = Math.atan2(Math.sin(err), Math.cos(err))
@@ -758,7 +760,7 @@ function updateOrbs(dt, t) {
   orbMesh.instanceMatrix.needsUpdate = haloMesh.instanceMatrix.needsUpdate = true
 }
 function unlockSecret() {
-  secret = true
+  secret = true; track('all_orbs')
   toast('✦ All 32 orbs — secret unlocked: rainbow trails. Now let’s talk →', 4200)
   for (let i = 0; i < 40; i++) sparks.emit(car.pos.x, 1.5, car.pos.z, (Math.random() - 0.5) * 14, 4 + Math.random() * 8, (Math.random() - 0.5) * 14, new THREE.Color().setHSL(Math.random(), 0.9, 0.6), 1.2)
 }
@@ -849,7 +851,7 @@ addEventListener('resize', onResize)
 if ('serviceWorker' in navigator && import.meta.env.PROD) addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}))
 function startGame() {
   if (started || !ready) return
-  audio.start(); started = true; startFrame = frame; $('#start').classList.add('is-gone'); $('#hud').classList.add('is-on'); camSnap = false
+  audio.start(); track('world_start', { mobile: isMobile }); started = true; startFrame = frame; $('#start').classList.add('is-gone'); $('#hud').classList.add('is-on'); camSnap = false
   car.vel.set(0, 0); car.ang = 0
 }
 const pctEl = $('#loadPct'), barEl = $('#loadBar'), btn = $('#startBtn')

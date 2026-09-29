@@ -68,7 +68,7 @@ export const ZONES = [
   })),
   {
     id: 'contact', kind: 'contact', name: 'Contact', nav: 'Contact', pos: [0, 64], r: 13, spawn: [0, 55], color: 0xff2d8a,
-    html: `<span class="tag mono">04 — Contact</span><h3>Let's build something that moves.</h3><p>Available for new roles in 2026. Tehran, Iran.</p><a class="big-link" href="mailto:im.enzo.021@gmail.com">im.enzo.021@gmail.com</a><div class="links mono"><a href="https://github.com/iman-mohamadi" target="_blank" rel="noopener">GitHub ↗</a><a href="https://t.me/iEnzO" target="_blank" rel="noopener">Telegram ↗</a><a href="https://instagram.com/im_mhmdi" target="_blank" rel="noopener">Instagram ↗</a><a href="tel:+989384249894">+98 938 424 9894</a></div>`,
+    html: `<span class="tag mono">04 — Contact</span><h3>Let's build something that moves.</h3><p>Available for new roles in 2026 · Tehran, Iran · open to remote.</p><div class="cta"><a class="btn primary mono" data-ev="hire_email" href="mailto:im.enzo.021@gmail.com?subject=Let%27s%20talk%20%E2%80%94%20from%20your%20portfolio&body=Hi%20Iman%2C%0A%0A">Hire me — email ↗</a><a class="btn mono" data-ev="cv_download" href="/Iman-Mohammadi-CV.pdf" download>Download CV ↓</a></div><a class="big-link" data-ev="email" href="mailto:im.enzo.021@gmail.com">im.enzo.021@gmail.com</a><div class="links mono"><a data-ev="github" href="https://github.com/iman-mohamadi" target="_blank" rel="noopener">GitHub ↗</a><a data-ev="telegram" href="https://t.me/iEnzO" target="_blank" rel="noopener">Telegram ↗</a><a data-ev="instagram" href="https://instagram.com/im_mhmdi" target="_blank" rel="noopener">Instagram ↗</a><a data-ev="phone" href="tel:+989384249894">+98 938 424 9894</a></div>`,
   },
 ]
 

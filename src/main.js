@@ -4,6 +4,8 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import Lenis from 'lenis'
 import { createGL } from './gl.js'
 import { initGame } from './game.js'
+import { initAnalytics } from './world/analytics.js'
+initAnalytics()
 
 gsap.registerPlugin(ScrollTrigger)
 gsap.defaults({ ease: 'expo.out' })
