@@ -18,7 +18,29 @@ npm run dev      # http://localhost:5173
 npm run build    # outputs dist/ (both pages)
 ```
 
-Controls: `WASD` / arrows drive · `Shift` boost · `Space` drift · `E` interact · `1–6` fast travel.
+Controls: `WASD` / arrows drive · `Shift` boost · `Space` drift · `E` interact · `1–6` fast travel · `T` auto tour · `R` time trial · `P` photo.
+Gamepad: sticks/triggers drive, `RB`/`B` boost, `X`/`LB` drift, `A` interact/start, `Y` tour. Touch: floating joystick + Boost / Drift buttons.
+
+Quality: the ⚙ button cycles Auto / High / Med / Low (Auto adapts resolution to the display's refresh rate). `?quality=high` forces full quality.
+
+## Project layout
+
+```
+index.html            3D world entry          classic.html   scrolling version
+src/world/world.js    scene, car, zones, UI   stations.js    the six physical sections
+helpers.js  content.js  tour.js  sky.js  fx.js  models.js  audio.js  analytics.js
+public/               models, project screenshots (shots/), icons, sw.js, og.jpg, CV
+tests/smoke.mjs       end-to-end smoke test
+```
+
+## Checks
+
+```bash
+npm run build && npm run smoke     # smoke test needs Chromium: CHROME_PATH=/path/to/chrome, or `npx playwright-core install chromium`
+```
+
+CI (`.github/workflows/ci.yml`) runs both on every push. `vercel.json` sets caching + security headers (framework: Vite).
+Analytics are cookieless (Vercel Web Analytics), off on localhost / Do-Not-Track / `VITE_ANALYTICS=off`.
 
 ## Using real 3D models
 

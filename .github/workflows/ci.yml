@@ -1,0 +1,22 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build-and-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Install Chromium for the smoke test
+        run: npx playwright-core install --with-deps chromium
+      - name: Smoke test (world boots, tour, trial, contact CTA, no errors)
+        run: npm run smoke
