@@ -10,12 +10,12 @@ export const DIALOGUE = [
 ]
 
 export const PROJECTS = [
-  { id: 'raya', n: '01', name: 'Raya UI', stack: 'Vue.js · Nuxt · Tailwind CSS', url: 'https://raya-ui.com', host: 'raya-ui.com', text: 'Open-source, tokenised design system built to stay coherent across 40 product teams.', viz: 'grid' },
-  { id: 'hotelyar', n: '02', name: 'Hotelyar', stack: 'Vue.js · Nuxt · SSR', url: 'https://hotelyar.com', host: 'hotelyar.com', text: 'Enterprise reservation platform engineered to route 1.2M queries/sec at low TTFB.', viz: 'bars' },
-  { id: 'woodcoder', n: '03', name: 'Woodcoder', stack: 'Vue.js · Three.js · WebGL', url: 'https://woodcoder.com', host: 'woodcoder.com', text: 'Live parametric 3D furniture configurator holding 60fps on integrated GPUs.', viz: 'cube' },
-  { id: 'rizo', n: '04', name: 'Rizo', stack: 'Next.js · Server Components', url: 'https://rizo.top', host: 'rizo.top', text: 'Edge-deployed platform on React Server Components for maximum speed & SEO.', viz: 'tree' },
-  { id: 'tricup', n: '05', name: 'Tricup', stack: 'React.js · Tailwind CSS', url: 'https://tricup.ir', host: 'tricup.ir', text: 'World Cup 2026 live coverage hub with an interactive match prediction & scoring system.', viz: 'ball' },
-  { id: 'tinyhub', n: '06', name: 'TinyHub', stack: 'Next.js · Node.js · Micro-tools', url: 'https://tinyhub.ir', host: 'tinyhub.ir', text: 'Developer productivity suite — JSON formatter, live syntax highlighter & more.', viz: 'json' },
+  { id: 'raya', n: '01', name: 'Raya UI', role: 'Author / Creator', stack: 'Vue.js · Nuxt · Tailwind CSS', chips: ['Vue 3', 'Nuxt 3', 'Tailwind', 'TypeScript'], chip: '40 teams', img: 'raya', url: 'https://raya-ui.com', host: 'raya-ui.com', text: 'Open-source, tokenised design system built to stay coherent across 40 product teams.', points: ['High-performance, interactive Vue primitives — black, bold and strictly typed', 'Design tokens keep 40 product teams visually coherent', 'Open source on GitHub'], viz: 'grid' },
+  { id: 'hotelyar', n: '02', name: 'Hotelyar', role: 'Senior Architect', stack: 'Vue.js · Nuxt · SSR', chips: ['Vue 3', 'Nuxt 3', 'SSR / SSG', 'Tailwind'], chip: '1.2M queries/s', img: 'hotelyar', url: 'https://hotelyar.com', host: 'hotelyar.com', text: 'Enterprise reservation platform engineered to route 1.2M queries/sec at low TTFB.', points: ['Built to route 1.2M queries per second', 'Low TTFB through SSR/SSG, code splitting and asset caching', 'Figma prototypes turned into production Nuxt + Tailwind'], viz: 'bars' },
+  { id: 'woodcoder', n: '03', name: 'Woodcoder', role: 'Lead 3D Engineer', stack: 'Vue.js · Three.js · WebGL', chips: ['Vue 3', 'Three.js', 'WebGL', 'GSAP'], chip: '60 fps · WebGL', img: 'woodcoder', url: 'https://woodcoder.com', host: 'woodcoder.com', text: 'Live parametric 3D furniture configurator holding 60fps on integrated GPUs.', points: ['Live parametric modeling — change the size, see the furniture rebuild', 'Holds 60fps even on integrated GPUs', 'GSAP-driven UI animation on top of the 3D scene'], viz: 'cube' },
+  { id: 'rizo', n: '04', name: 'Rizo', role: 'Lead Engineer', stack: 'Next.js · Server Components', chips: ['Next.js', 'React Server Components', 'TypeScript'], chip: 'RSC · edge', img: null, url: 'https://rizo.top', host: 'rizo.top', text: 'Edge-deployed platform on React Server Components for maximum speed & SEO.', points: ['Edge-deployed on the Next.js App Router', 'React Server Components keep client JavaScript minimal', 'Tuned for speed and SEO'], viz: 'tree' },
+  { id: 'tricup', n: '05', name: 'Tricup', role: 'Founder / Full-Stack', stack: 'React.js · Tailwind CSS', chips: ['React', 'Tailwind CSS', 'Full-stack'], chip: 'World Cup 2026', img: null, url: 'https://tricup.ir', host: 'tricup.ir', text: 'World Cup 2026 live coverage hub with an interactive match prediction & scoring system.', points: ['Live coverage hub for the 2026 World Cup', 'Interactive match predictions with a scoring system', 'Designed, built and run end to end'], viz: 'ball' },
+  { id: 'tinyhub', n: '06', name: 'TinyHub', role: 'Developer tools', stack: 'Next.js · Node.js · Micro-tools', chips: ['Next.js', 'Node.js', 'Micro-tools'], chip: 'JSON · fast · free', img: 'tinyhub', url: 'https://tinyhub.ir', host: 'tinyhub.ir', text: 'Developer productivity suite — JSON formatter, live syntax highlighter & more.', points: ['JSON formatter with validation and prettifying', 'Live syntax highlighter and code sharing', 'Minimal, fast and free'], viz: 'json' },
 ]
 
 export const JOBS = [
@@ -47,7 +47,7 @@ export const GATE_Z = 34
 
 const proj = (p) => ({
   id: p.id, kind: 'project', name: p.name, nav: null, pos: p.pos, r: 8, url: p.url,
-  html: `<span class="tag mono">${p.n} — Selected work</span><h3>${p.name}</h3><p class="dim mono">${p.stack}</p><p>${p.text}</p><a class="btn mono" href="${p.url}" target="_blank" rel="noopener">${p.host} ↗ <kbd>E</kbd></a>`,
+  html: `<span class="tag mono">${p.n} — Selected work · ${p.role}</span><h3>${p.name}</h3><p class="chips">${p.chips.map((t) => `<i class="mono">${t}</i>`).join('')}</p><p>${p.text}</p><ul class="pts">${p.points.map((t) => `<li>${t}</li>`).join('')}</ul><a class="btn mono" data-ev="project_visit" href="${p.url}" target="_blank" rel="noopener">${p.host} ↗ <kbd>E</kbd></a>`,
 })
 
 export const ZONES = [

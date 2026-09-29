@@ -368,20 +368,36 @@ function drawViz(kind, x, X, Y, W, H, tt) {
   x.restore()
 }
 /** Static layer is painted once; only the visual is redrawn (and only while the board is active). */
+const VZ = { x: 44, y: 88, w: BW - 88, h: 400 }
 function makeBoard(p) {
   const S = document.createElement('canvas'); S.width = BW; S.height = BH
   const x = S.getContext('2d')
   x.fillStyle = '#08080d'; x.fillRect(0, 0, BW, BH)
-  x.fillStyle = '#ff2d8a'; x.font = `300 34px ${F_MONO}`; x.fillText(p.n, 44, 66)
-  x.fillStyle = 'rgba(242,239,236,.55)'; x.textAlign = 'right'; x.fillText(p.host.toUpperCase() + ' ↗', BW - 44, 66); x.textAlign = 'left'
-  x.strokeStyle = 'rgba(255,255,255,.12)'; x.strokeRect(44, 96, BW - 88, 290)
-  x.fillStyle = '#f2efec'; x.font = `200 118px ${F_SANS}`; x.fillText(p.name, 44, 512)
-  x.fillStyle = 'rgba(242,239,236,.55)'; x.font = `300 32px ${F_MONO}`; x.fillText(p.stack.toUpperCase(), 46, 584)
+  x.fillStyle = '#ff2d8a'; x.font = `300 34px ${F_MONO}`; x.fillText(p.n, 44, 58)
+  x.fillStyle = 'rgba(242,239,236,.55)'; x.textAlign = 'right'; x.fillText(p.host.toUpperCase() + ' ↗', BW - 44, 58); x.textAlign = 'left'
+  x.strokeStyle = 'rgba(255,255,255,.14)'; x.strokeRect(VZ.x, VZ.y, VZ.w, VZ.h)
+  x.fillStyle = '#f2efec'; x.font = `200 96px ${F_SANS}`; x.fillText(p.name, 44, 566)
+  x.fillStyle = 'rgba(242,239,236,.55)'; x.font = `300 28px ${F_MONO}`; x.fillText(p.stack.toUpperCase(), 46, 612)
   const L = document.createElement('canvas'); L.width = BW; L.height = BH
   const lx = L.getContext('2d')
   const tex = new THREE.CanvasTexture(L); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = isMobile ? 4 : 8
-  const render = (tt) => { lx.drawImage(S, 0, 0); drawViz(p.viz, lx, 44, 96, BW - 88, 290, tt); tex.needsUpdate = true }
+  let img = null
+  const chip = (tt) => {
+    lx.font = `300 26px ${F_MONO}`; const label = p.chip.toUpperCase(), tw = lx.measureText(label).width + 44
+    lx.fillStyle = 'rgba(5,5,10,.78)'; lx.strokeStyle = '#ff2d8a'; lx.lineWidth = 2; lx.beginPath(); lx.roundRect(VZ.x + 18, VZ.y + 18, tw, 46, 23); lx.fill(); lx.stroke()
+    lx.fillStyle = tt ? '#7ee0ff' : '#f2efec'; lx.fillText(label, VZ.x + 40, VZ.y + 50)
+  }
+  const render = (tt) => {
+    lx.drawImage(S, 0, 0)
+    if (img) {
+      const ih = VZ.w * (img.height / img.width), pan = Math.max(0, ih - VZ.h) * (tt ? 0.5 - 0.5 * Math.cos(tt * 0.45) : 0)
+      lx.save(); lx.beginPath(); lx.rect(VZ.x, VZ.y, VZ.w, VZ.h); lx.clip(); lx.drawImage(img, VZ.x, VZ.y - pan, VZ.w, ih)
+      const g = lx.createLinearGradient(0, VZ.y + VZ.h - 90, 0, VZ.y + VZ.h); g.addColorStop(0, 'rgba(8,8,13,0)'); g.addColorStop(1, 'rgba(8,8,13,.75)'); lx.fillStyle = g; lx.fillRect(VZ.x, VZ.y + VZ.h - 90, VZ.w, 90); lx.restore()
+    } else drawViz(p.viz, lx, VZ.x, VZ.y, VZ.w, VZ.h, tt)
+    chip(tt); tex.needsUpdate = true
+  }
   render(0)
+  if (p.img) { const im = new Image(); im.onload = () => { img = im; render(0) }; im.src = `/shots/${p.img}.webp` }
   return { tex, render, last: -1 }
 }
 function buildWork() {
@@ -395,7 +411,7 @@ function buildWork() {
     const pole = new THREE.Mesh(new THREE.BoxGeometry(0.5, 4, 0.5), dark()); pole.position.y = 2; g.add(pole)
     const frame = new THREE.Mesh(new THREE.BoxGeometry(9.5, 6.1, 0.3), glow(i % 2 ? VIOLET : PINK, 1.6)); frame.position.y = 6.8; g.add(frame)
     const live = makeBoard(p)
-    const screen = new THREE.Mesh(new THREE.PlaneGeometry(9.1, 5.7), basic(live.tex, { transparent: false })); screen.position.set(0, 6.8, 0.17); g.add(screen)
+    const screen = new THREE.Mesh(new THREE.PlaneGeometry(9.1, 5.7), basic(live.tex, { transparent: false, color: new THREE.Color().setScalar(0.62) })); screen.position.set(0, 6.8, 0.17); g.add(screen)
     g.lookAt(cx, 0, cz)
     addStatic(p.board[0], p.board[1], 1)
     boards.push({ id: p.id, g, frame, live, base: i % 2 ? VIOLET : PINK })
