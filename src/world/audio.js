@@ -1,6 +1,6 @@
 // Tiny WebAudio synth: engine hum, ambient pad, chimes and thuds. No asset files.
 export function createAudio() {
-  let ctx, master, eng1, eng2, engGain, filt, on = false
+  let ctx, master, eng1, eng2, engGain, filt, on = false, arp, speedN = 0
   let muted = false
   try { muted = localStorage.getItem('im-muted') === '1' } catch (_) { /* private mode */ }
 
@@ -20,6 +20,23 @@ export function createAudio() {
       const g = ctx.createGain(); g.gain.value = 0.05; o.connect(g); g.connect(master); o.start()
     }
     on = true
+    // generative music: chord-following arpeggio through a feedback delay, tempo rises with speed
+    arp = ctx.createGain(); arp.gain.value = 0.5
+    const dl = ctx.createDelay(1); dl.delayTime.value = 0.32; const fb = ctx.createGain(); fb.gain.value = 0.38
+    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 2200
+    arp.connect(master); arp.connect(dl); dl.connect(lp); lp.connect(fb); fb.connect(dl); lp.connect(master)
+    const chords = [[220, 261.63, 329.63], [174.61, 220, 261.63], [261.63, 329.63, 392], [196, 246.94, 293.66]]
+    let step = 0, nextT = ctx.currentTime + 0.2
+    const note = (f, t, d, v) => { const o = ctx.createOscillator(), g = ctx.createGain(); o.type = 'triangle'; o.frequency.value = f; g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(v, t + 0.015); g.gain.exponentialRampToValueAtTime(0.0001, t + d); o.connect(g); g.connect(arp); o.start(t); o.stop(t + d + 0.05) }
+    setInterval(() => {
+      if (muted || ctx.state !== 'running') { nextT = ctx.currentTime + 0.1; return }
+      while (nextT < ctx.currentTime + 0.15) {
+        const ch = chords[(step >> 4) % 4], pat = [0, 1, 2, 1, 2, 1, 0, 2][step % 8]
+        if (step % 2 === 0 || Math.random() < 0.45) note(ch[pat] * (step % 8 > 4 ? 2 : 1), nextT, 0.5, 0.055 + Math.random() * 0.02)
+        if (step % 16 === 0) note(ch[0] / 2, nextT, 1.6, 0.09)
+        step++; nextT += 0.27 - 0.1 * speedN
+      }
+    }, 45)
     document.addEventListener('visibilitychange', () => { if (!ctx) return; document.hidden ? ctx.suspend() : ctx.resume() })
   }
   function tone(f, dur, type = 'sine', vol = 0.15, slideTo) {
@@ -32,6 +49,7 @@ export function createAudio() {
   return {
     start() { init(); if (ctx?.state === 'suspended') ctx.resume() },
     engine(speed, throttle, boost) {
+      speedN = speed
       if (!on) return
       const t = ctx.currentTime
       eng1.frequency.setTargetAtTime(46 + speed * 95 + boost * 38, t, 0.08); eng2.frequency.setTargetAtTime((46 + speed * 95 + boost * 38) * 1.5, t, 0.08)

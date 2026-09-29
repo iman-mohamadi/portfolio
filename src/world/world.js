@@ -92,6 +92,7 @@ function sprite(text, { size = 3, color = '#f2efec', font = `300 120px ${F_SANS}
   return s
 }
 const statics = []
+const camObs = [] // extra camera-only obstacles: billboard faces (statics only cover their poles)
 const tickers = []
 const addStatic = (x, z, r) => statics.push({ x, z, r })
 function seeded(seed) { let s = seed; return () => ((s = (s * 16807) % 2147483647) / 2147483647) }
@@ -414,6 +415,7 @@ function buildWork() {
     const screen = new THREE.Mesh(new THREE.PlaneGeometry(9.1, 5.7), basic(live.tex, { transparent: false, color: new THREE.Color().setScalar(0.62) })); screen.position.set(0, 6.8, 0.17); g.add(screen)
     g.lookAt(cx, 0, cz)
     addStatic(p.board[0], p.board[1], 1)
+    { const tx = -(cz - p.board[1]), tz = cx - p.board[0], L = Math.hypot(tx, tz); for (const k of [-3.6, 0, 3.6]) camObs.push({ x: p.board[0] + (tx / L) * k, z: p.board[1] + (tz / L) * k, r: 1.9, top: 10.5 }) }
     boards.push({ id: p.id, g, frame, live, base: i % 2 ? VIOLET : PINK })
     tickers.push((t) => { g.position.y = Math.sin(t * 1.2 + i) * 0.12 })
   })
@@ -517,6 +519,8 @@ addEventListener('keydown', (e) => {
   if (!started) { if (e.code === 'Enter' || e.code === 'Space') startGame(); return }
   if (e.code === 'KeyE' || e.code === 'Enter') interact()
   if (e.code === 'KeyT') { tour.on ? cancelTour() : startTour() }
+  if (e.code === 'KeyR') { trial.on ? stopTrial('Trial cancelled') : startTrial() }
+  if (e.code === 'KeyP') takePhoto()
   const n = +e.code.replace('Digit', ''); if (n >= 1 && n <= NAV.length) warp(NAV[n - 1].id)
 })
 addEventListener('keyup', (e) => { keys[e.code] = false })
@@ -539,10 +543,10 @@ document.addEventListener('gesturestart', (e) => e.preventDefault())
 /* ------------------------------------------------------------------ zones + UI */
 const NAV = ZONES.filter((z) => z.nav).map((z) => ({ id: z.id, label: z.nav }))
 const navEl = $('#nav')
-navEl.innerHTML = NAV.map((n, i) => `<button data-nav="${n.id}"><b>${i + 1}</b>${n.label}</button>`).join('') + '<button data-tour class="tour">▶ Tour</button><button data-nav="contact" class="hire">Hire me</button>'
+navEl.innerHTML = NAV.map((n, i) => `<button data-nav="${n.id}"><b>${i + 1}</b>${n.label}</button>`).join('') + '<button data-tour class="tour">▶ Tour</button><button data-trial class="tour">⏱ Trial</button><button data-nav="contact" class="hire">Hire me</button>'
 const seen = new Set(); let allSeen = false
 const navKey = (z) => (z.kind === 'project' ? 'work' : z.kind === 'job' ? 'gsi' : z.id)
-document.addEventListener('click', (e) => { const t = e.target.closest('[data-tour]'); if (t) { e.preventDefault(); tour.on ? cancelTour() : startTour(); return } const b = e.target.closest('[data-nav]'); if (!b) return; e.preventDefault(); warp(b.dataset.nav) })
+document.addEventListener('click', (e) => { const tr = e.target.closest('[data-trial]'); if (tr) { e.preventDefault(); trial.on ? stopTrial('Trial cancelled') : startTrial(); return } const t = e.target.closest('[data-tour]'); if (t) { e.preventDefault(); tour.on ? cancelTour() : startTour(); return } const b = e.target.closest('[data-nav]'); if (!b) return; e.preventDefault(); warp(b.dataset.nav) })
 const actBtn = $('#actBtn'), panel = $('#panel'), toastEl = $('#toast'), locEl = $('#loc'), hintEl = $('#hint')
 let active = null, dlg = { i: 0, timer: 0, auto: 0, done: false, seen: false }
 
@@ -576,6 +580,7 @@ function enterZone(z) {
   actBtn.classList.toggle('is-on', !!z && (z.id === 'home' || !!z.url)); actBtn.textContent = z?.url ? 'Visit ↗' : 'Next'
   if (!z) { panel.classList.remove('is-on'); locEl.innerHTML = ''; return }
   locEl.innerHTML = `Now at <b>${z.name}</b>`; audio.blip()
+  if (trial.on && trial.cd <= 0 && z.id === TRIAL[trial.i]) hitCheckpoint()
   if (!seen.has(navKey(z))) track('zone_first_visit', { zone: navKey(z) }); seen.add(navKey(z)); navEl.querySelectorAll('[data-nav]').forEach((b) => b.classList.toggle('seen', seen.has(b.dataset.nav)))
   if (!allSeen && NAV.every((n) => seen.has(n.id))) { allSeen = true; setTimeout(() => toast('You’ve seen everything — let’s talk →', 4500), 1800) }
   hintEl.classList.add('is-off')
@@ -590,7 +595,7 @@ function interact() {
 }
 function warp(id, keepTour = false) {
   const z = ZONES.find((k) => k.id === id); if (!z || !started) return
-  if (!keepTour) cancelTour()
+  if (!keepTour) { cancelTour(); stopTrial() }
   const [sx, sz] = z.spawn || z.pos, [tx, tz] = z.pos
   car.pos.set(sx, 0, sz); car.vel.set(0, 0)
   car.ang = Math.atan2(-(tx - sx), -(tz - sz))
@@ -637,6 +642,39 @@ const TOUR = [
   { p: [24, 50] }, { p: [0, 55], dwell: 10 },
 ]
 const tour = { on: false, i: 0, wait: 0, stuck: 0 }
+/* time trial: "speedrun the CV" — hit five checkpoints in order, fastest time is stored locally */
+const TRIAL = ['about', 'skills', 'rizo', 'dew', 'contact']
+let best = 0; try { best = +localStorage.getItem('im-best') || 0 } catch (_) { /* private mode */ }
+const trial = { on: false, i: 0, t: 0, cd: 0, step: 0 }
+const beacon = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 2.6, 70, 20, 1, true), new THREE.MeshBasicMaterial({ color: 0x7ee0ff, transparent: true, opacity: 0.24, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, toneMapped: false }))
+beacon.visible = false; scene.add(beacon)
+const zoneById = (id) => ZONES.find((z) => z.id === id)
+const setBeacon = () => { const z = zoneById(TRIAL[trial.i]); beacon.position.set(z.pos[0], 35, z.pos[1]) }
+function startTrial() {
+  if (!ready) return
+  if (!started) startGame()
+  cancelTour(); warp('home', true)
+  Object.assign(trial, { on: true, i: 0, t: 0, cd: 3.6, step: 0 }); beacon.visible = true; setBeacon(); tourChip.classList.add('is-on'); track('trial_start')
+}
+function stopTrial(msg) { if (!trial.on) return; trial.on = false; beacon.visible = false; tourChip.classList.remove('is-on'); if (msg) toast(msg, 3000) }
+function finishTrial() {
+  const ms = trial.t, rec = !best || ms < best
+  if (rec) { best = ms; try { localStorage.setItem('im-best', String(ms)) } catch (_) { /* ignore */ } }
+  track('trial_finish', { sec: Math.round(ms) }); stopTrial(); toast(`🏁 ${ms.toFixed(1)}s${rec ? ' — new best!' : ` · best ${best.toFixed(1)}s`}`, 5500)
+  for (let i = 0; i < 50; i++) sparks.emit(car.pos.x, 1.5, car.pos.z, (Math.random() - 0.5) * 16, 4 + Math.random() * 9, (Math.random() - 0.5) * 16, new THREE.Color().setHSL(Math.random(), 0.9, 0.6), 1.3)
+}
+function hitCheckpoint() {
+  audio.chime(trial.i * 2); sparks.burst(car.pos.x, 1.2, car.pos.z, 0x7ee0ff, 24, 9); trial.i++
+  if (trial.i >= TRIAL.length) finishTrial(); else { setBeacon(); toast(`Checkpoint ${trial.i}/${TRIAL.length} ✓`, 1200) }
+}
+function updateTrial(dt) {
+  if (!trial.on) return
+  if (trial.cd > 0) {
+    trial.cd -= dt; const marks = [3.4, 2.6, 1.6, 0.6]
+    while (trial.step < 4 && trial.cd <= marks[trial.step]) { toast(trial.step < 3 ? String(3 - trial.step) : 'GO!', 700); audio.blip(); trial.step++ }
+  } else trial.t += dt
+  if (frame % 3 === 0) { const z = zoneById(TRIAL[trial.i]), d = Math.round(Math.hypot(car.pos.x - z.pos[0], car.pos.z - z.pos[1])); tourChip.innerHTML = trial.cd > 0 ? '<b>Time trial</b> get ready…' : `<b>${trial.t.toFixed(1)}s</b> → ${z.name} · ${d}m <span>${best ? '· best ' + best.toFixed(1) + 's' : ''}</span>` }
+}
 const tourChip = $('#tourChip')
 const paintTour = () => { tourChip.innerHTML = `<b>Auto tour</b> ${Math.min(tour.i + 1, TOUR.length)}/${TOUR.length} <span>— ${coarse ? 'touch' : 'press any key'} to take the wheel</span>` }
 function startTour() {
@@ -646,8 +684,27 @@ function startTour() {
   tourChip.classList.add('is-on'); paintTour(); track('tour_start')
 }
 function cancelTour(msg) { if (!tour.on) return; tour.on = false; tourChip.classList.remove('is-on'); if (msg) toast(msg, 3200) }
-const userActive = () => keys.KeyW || keys.KeyA || keys.KeyS || keys.KeyD || keys.ArrowUp || keys.ArrowDown || keys.ArrowLeft || keys.ArrowRight || keys.Space || keys.ShiftLeft || keys.ShiftRight || stick.on || boostBtn || driftBtn
+const userActive = () => keys.KeyW || keys.KeyA || keys.KeyS || keys.KeyD || keys.ArrowUp || keys.ArrowDown || keys.ArrowLeft || keys.ArrowRight || keys.Space || keys.ShiftLeft || keys.ShiftRight || stick.on || boostBtn || driftBtn || padOn
 const IDLE = { f: 0, t: 0, boost: false, drift: false }
+/* gamepad (standard mapping): sticks/triggers drive, RB or B boost, X or LB drift, A interact/start, Y tour, Start begins */
+const dz = (v, d = 0.16) => (Math.abs(v) < d ? 0 : v)
+let padOn = false, padPrev = {}, padS = null
+function readPad() { const list = navigator.getGamepads ? navigator.getGamepads() : []; for (const g of list) if (g && g.connected) return g; return null }
+function padState() {
+  const g = readPad(); if (!g) return null
+  const b = (i) => !!g.buttons[i]?.pressed, v = (i) => g.buttons[i]?.value || 0
+  let f = v(7) - v(6); const ly = dz(g.axes[1] ?? 0); if (f === 0 && ly) f = -ly
+  return { f, t: dz(g.axes[0] ?? 0), boost: b(5) || b(1), drift: b(2) || b(4), a: b(0), y: b(3), start: b(9) }
+}
+function pollPad() {
+  padS = padState()
+  if (!padS) { padOn = false; return }
+  padOn = Math.abs(padS.f) > 0.25 || Math.abs(padS.t) > 0.25 || padS.boost || padS.drift
+  if ((padS.a || padS.start) && !padPrev.a && !padPrev.start && !started) startGame()
+  else if (padS.a && !padPrev.a) interact()
+  if (padS.y && !padPrev.y && started) { tour.on ? cancelTour() : startTour() }
+  padPrev = padS
+}
 function autopilot(dt) {
   const w = TOUR[tour.i]
   if (!w) { track('tour_complete'); cancelTour('That was the tour — take the wheel and explore ✦'); return IDLE }
@@ -661,11 +718,13 @@ function autopilot(dt) {
   return { f: car.speed < vmax ? 1 : car.speed > vmax + 3 ? -0.5 : 0.15, t: clamp(-err * 2.4, -1, 1), boost: d > 28 && align > 0.95 && car.energy > 0.6, drift: false }
 }
 function getInput(dt) {
+  if (trial.on && trial.cd > 0) return IDLE
   if (tour.on) { if (userActive()) cancelTour(); else return autopilot(dt) }
   let f = (keys.KeyW || keys.ArrowUp ? 1 : 0) - (keys.KeyS || keys.ArrowDown ? 1 : 0)
   let t = (keys.KeyD || keys.ArrowRight ? 1 : 0) - (keys.KeyA || keys.ArrowLeft ? 1 : 0)
   if (stick.on) { f = clamp(-stick.y * 1.5, -1, 1); t = clamp(stick.x * 1.5, -1, 1) }
-  return { f, t, boost: keys.ShiftLeft || keys.ShiftRight || boostBtn, drift: !!keys.Space || driftBtn }
+  if (padS) { f = clamp(f + padS.f, -1, 1); t = clamp(t + padS.t, -1, 1) }
+  return { f, t, boost: keys.ShiftLeft || keys.ShiftRight || boostBtn || !!padS?.boost, drift: !!keys.Space || driftBtn || !!padS?.drift }
 }
 function updateCar(dt, t) {
   const inp = started ? getInput(dt) : IDLE
@@ -782,6 +841,27 @@ function unlockSecret() {
 }
 
 /* ------------------------------------------------------------------ camera */
+const camHead = new THREE.Vector3()
+/** If a large obstacle (billboard, monolith, tower) sits between the car and the desired camera spot, pull the camera in front of it. */
+function occlude(des) {
+  camHead.set(car.pos.x, 1.5, car.pos.z)
+  const sx = des.x - camHead.x, sz = des.z - camHead.z, L = Math.hypot(sx, sz) || 1
+  let best = 1
+  const test = (o) => {
+    if (o.r < 1.2) return
+    const t = clamp(((o.x - camHead.x) * sx + (o.z - camHead.z) * sz) / (L * L), 0, 1), d = Math.hypot(camHead.x + sx * t - o.x, camHead.z + sz * t - o.z)
+    if (d < o.r + 0.5) { const tt = Math.max(0.1, t - (o.r + 0.9) / L); if (tt < best) best = tt }
+  }
+  for (const o of camObs) test(o)
+  for (const o of statics) test(o)
+  if (best < 1) { des.x = camHead.x + sx * best; des.z = camHead.z + sz * best; des.y = lerp(camHead.y + 1.6, des.y, best) }
+}
+function avoidObstacles() {
+  const c = camera.position
+  const push = (o, top) => { if (c.y > top) return; const dx = c.x - o.x, dz = c.z - o.z, m = o.r + 0.9, d2 = dx * dx + dz * dz; if (d2 < m * m) { const d = Math.sqrt(d2) || 0.001; c.x = o.x + (dx / d) * m; c.z = o.z + (dz / d) * m } }
+  for (const o of statics) push(o, 9)
+  for (const o of camObs) push(o, o.top)
+}
 const camLook = new THREE.Vector3(), camDes = new THREE.Vector3(), tgt = new THREE.Vector3()
 let camSnap = true, menuAng = 0.6
 function updateCamera(dt, t) {
@@ -796,9 +876,11 @@ function updateCamera(dt, t) {
   const port = clamp(1.15 - camera.aspect, 0, 0.7)
   const dist = 11 + sn * 3.5 + port * 7, h = 5.4 + sn * 1.5 + port * 3.5
   camDes.set(car.pos.x - fx * dist, h, car.pos.z - fz * dist)
+  occlude(camDes)
   tgt.set(car.pos.x + fx * 5, 1.5, car.pos.z + fz * 5)
   if (camSnap) { camera.position.copy(camDes); camLook.copy(tgt); camSnap = false }
   camera.position.lerp(camDes, damp(dt, 3.4)); camLook.lerp(tgt, damp(dt, 7))
+  avoidObstacles()
   if (shake > 0) { shake -= dt; camera.position.x += (Math.random() - 0.5) * shake; camera.position.y += (Math.random() - 0.5) * shake }
   camera.lookAt(camLook)
   const fov = 58 + port * 30 + sn * 9 + car.boost * 8
@@ -835,7 +917,7 @@ function tick() {
   frame++
   fpsAcc += dt; fpsN++
   if (fpsAcc > 0.5) { fpsShow = fpsN / fpsAcc; fpsEl.textContent = Math.round(fpsShow) + ' fps'; fpsAcc = 0; fpsN = 0 }
-  renderer.info.reset(); updateDRS(dt)
+  renderer.info.reset(); pollPad(); updateDRS(dt)
   gpuTime.value = t; sky.update(camera, t); skyline.update(t)
   groundMat.uniforms.uTime.value = t; groundMat.uniforms.uCar.value.copy(car.pos)
   updateCar(dt, t)
@@ -850,6 +932,7 @@ function tick() {
   avatarNear = lerp(avatarNear, active?.id === 'home' ? 1 : 0, damp(dt, 4))
   for (const b of boards) { const on = active?.id === b.id; if (on) { if (t - b.live.last > (isMobile ? 1 / 12 : 1 / 24)) { b.live.render(t); b.live.last = t } b.wasOn = true } else if (b.wasOn) { b.live.render(0); b.wasOn = false } b.g.scale.setScalar(lerp(b.g.scale.x, on ? 1.08 : 1, damp(dt, 5))); b.frame.material.emissiveIntensity = lerp(b.frame.material.emissiveIntensity, on ? 4.5 : 1.6, damp(dt, 5)) }
 
+  updateTrial(dt)
   updateCamera(dt, t)
   const fu = fx.uniforms; fu.uTime.value = t % 100; fu.uSpeed.value = clamp(Math.abs(car.speed) / 30, 0, 1); fu.uBoost.value = Math.max(car.boost * 0.9, car.padKick); fu.uHit.value = clamp(shake * 1.6, 0, 1)
   if (frame % 2 === 0 && started) drawMini()
@@ -865,6 +948,26 @@ addEventListener('resize', onResize)
 
 /* ------------------------------------------------------------------ boot */
 if ('serviceWorker' in navigator && import.meta.env.PROD) addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}))
+/** Photo mode: snapshot of the 3D scene (no UI) with a small watermark; shares on phones, downloads on desktop. */
+function takePhoto() {
+  if (!started) return
+  composer.render()
+  const src = canvas, out = document.createElement('canvas'); out.width = src.width; out.height = src.height
+  const c = out.getContext('2d'); c.drawImage(src, 0, 0)
+  const s = out.height / 720, bh = 56 * s
+  c.fillStyle = 'rgba(5,5,10,.6)'; c.fillRect(0, out.height - bh, out.width, bh); c.fillStyle = '#ff2d8a'; c.fillRect(0, out.height - bh, out.width, 2 * s)
+  c.font = `300 ${17 * s}px ${F_MONO}`; c.textBaseline = 'middle'; c.fillStyle = '#f2efec'; c.fillText('IMAN MOHAMMADI — DRIVE MY PORTFOLIO', 26 * s, out.height - bh / 2); c.textAlign = 'right'; c.fillStyle = '#ff8fc0'; c.fillText('iman-mhmdi.ir', out.width - 26 * s, out.height - bh / 2)
+  const f = $('#flash'); f.classList.remove('is-on'); void f.offsetWidth; f.classList.add('is-on')
+  out.toBlob(async (blob) => {
+    if (!blob) return
+    const file = new File([blob], `iman-portfolio-${Date.now()}.png`, { type: 'image/png' })
+    track('photo')
+    if (isMobile && navigator.canShare?.({ files: [file] })) { try { await navigator.share({ files: [file], title: 'Drive my portfolio', url: location.origin }); return } catch (_) { /* cancelled → fall through to download */ } }
+    const a = document.createElement('a'); a.href = URL.createObjectURL(file); a.download = file.name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000)
+    toast('📷 Photo saved', 1800)
+  }, 'image/png')
+}
+$('#photoBtn').addEventListener('click', takePhoto)
 function startGame() {
   if (started || !ready) return
   audio.start(); track('world_start', { mobile: isMobile }); started = true; startFrame = frame; $('#start').classList.add('is-gone'); $('#hud').classList.add('is-on'); camSnap = false
