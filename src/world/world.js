@@ -13,16 +13,35 @@ const $ = (s) => document.querySelector(s)
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v))
 const lerp = (a, b, t) => a + (b - a) * t
 const damp = (dt, k) => 1 - Math.exp(-k * dt)
+/* ---- capability gate: no WebGL2 → classic site; software renderer → low quality + notice */
+const qs = new URLSearchParams(location.search)
+const gpuProbe = (() => {
+  try {
+    const c = document.createElement('canvas'), gl = c.getContext('webgl2')
+    if (!gl) return { ok: false }
+    const ext = gl.getExtension('WEBGL_debug_renderer_info')
+    const name = ext ? String(gl.getParameter(ext.UNMASKED_RENDERER_WEBGL)) : ''
+    gl.getExtension('WEBGL_lose_context')?.loseContext()
+    return { ok: true, name, soft: /swiftshader|llvmpipe|softpipe|software|basic render/i.test(name) }
+  } catch (_) { return { ok: false } }
+})()
+if (!gpuProbe.ok) { location.replace('/classic.html?why=webgl'); throw new Error('WebGL2 unavailable — redirecting to the classic version') }
 const coarse = matchMedia('(pointer:coarse)').matches
 const isMobile = coarse || Math.min(innerWidth, innerHeight) < 600
-const lowEnd = isMobile && ((navigator.hardwareConcurrency || 8) <= 4 || (navigator.deviceMemory || 8) <= 3)
+const forceHQ = qs.get('quality') === 'high'
+const lowEnd = !forceHQ && ((isMobile && ((navigator.hardwareConcurrency || 8) <= 4 || (navigator.deviceMemory || 8) <= 3)) || gpuProbe.soft)
 const WORLD_R = 88
 const PINK = 0xff2d8a, VIOLET = 0x7a5cff
 const F_SANS = "'Inter Tight', sans-serif", F_SERIF = "'Instrument Serif', serif", F_MONO = "'JetBrains Mono', monospace"
 
 /* ------------------------------------------------------------------ renderer */
 const canvas = $('#world')
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' })
+let renderer
+try { renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' }) } catch (e) { location.replace('/classic.html?why=webgl'); throw e }
+const gfxErr = document.getElementById('gfxError')
+canvas.addEventListener('webglcontextlost', (e) => { e.preventDefault(); gfxErr.classList.add('is-on') })
+canvas.addEventListener('webglcontextrestored', () => location.reload())
+if (gpuProbe.soft && !forceHQ) document.getElementById('startWarn').hidden = false
 let pixelRatio = lowEnd ? 1 : Math.min(devicePixelRatio || 1, isMobile ? 1.5 : 1.75)
 renderer.setPixelRatio(pixelRatio)
 renderer.setSize(innerWidth, innerHeight, false)
@@ -827,6 +846,7 @@ function onResize() {
 addEventListener('resize', onResize)
 
 /* ------------------------------------------------------------------ boot */
+if ('serviceWorker' in navigator && import.meta.env.PROD) addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}))
 function startGame() {
   if (started || !ready) return
   audio.start(); started = true; startFrame = frame; $('#start').classList.add('is-gone'); $('#hud').classList.add('is-on'); camSnap = false

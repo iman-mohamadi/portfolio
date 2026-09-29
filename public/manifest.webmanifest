@@ -1,0 +1,17 @@
+{
+  "name": "Iman Mohammadi — Drive My Portfolio",
+  "short_name": "Iman",
+  "description": "A 3D world portfolio: drive through the work, skills and career of senior front-end architect Iman Mohammadi.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#050505",
+  "theme_color": "#050505",
+  "categories": ["portfolio", "developer"],
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

@@ -9,7 +9,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@200;300;400;500&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@300;400&display=swap" rel="stylesheet" />
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23050505'/%3E%3Cpath d='M8 24V8h3v16zM14 24V8h3.4l4.6 9V8h3v16h-3.4L17 15v9z' fill='%23ff2d8a'/%3E%3C/svg%3E" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+  <link rel="manifest" href="/manifest.webmanifest" />
 </head>
 <body>
   <canvas id="world" aria-hidden="true"></canvas>
@@ -21,6 +23,7 @@
       <p class="mono start__tag">Senior Front-End Architect · WebGL &amp; 3D Web</p>
       <h1>Drive<br /><span class="serif">my portfolio</span></h1>
       <p class="start__lead">This site is a 3D world. Take the wheel, explore the zones and meet me along the way.</p>
+      <p class="start__warn mono" id="startWarn" hidden>No GPU detected — this will run slowly. The <a href="/classic.html">classic version</a> is much smoother here (or add <b>?quality=high</b> to force full quality).</p>
       <div class="start__cta"><button class="start__btn mono" id="startBtn" disabled><span id="startLabel">Loading world… <b id="loadPct">0</b>%</span></button>
       <button class="start__btn start__btn--ghost mono" id="tourBtn" disabled>▶ Auto tour <em>— sit back, I'll drive</em></button></div>
       <div class="start__keys mono">
@@ -48,6 +51,8 @@
   <aside class="panel" id="panel" aria-live="polite"></aside>
   <div class="toast mono" id="toast"></div>
   <div class="flash" id="flash"></div>
+
+  <div class="gfxerr" id="gfxError" role="alert"><div><h2>Graphics interrupted</h2><p>Your GPU reset this page (it can happen on low memory or when switching apps).</p><p><button class="mono" onclick="location.reload()">Reload the world</button> <a class="mono" href="/classic.html">Open classic version</a></p></div></div>
 
   <!-- Touch controls -->
   <div class="touch" id="touch">

@@ -169,3 +169,13 @@ kbd{font:400 .68rem var(--mono);padding:.15em .5em;border:1px solid var(--faint)
   .start h1{font-size:clamp(2.6rem,12vh,5rem)}.start__lead{display:none}
 }
 @media (max-width:820px){.hud__brand .dim{display:none}.hud__nav{font-size:.62rem}}
+
+/* robustness notices */
+.start__warn{max-width:34rem;margin:0 0 1.2rem;padding:.7rem 1rem;border:1px solid rgba(255,190,60,.5);border-radius:8px;background:rgba(255,190,60,.08);color:#ffd98a;line-height:1.5;text-transform:none;letter-spacing:.02em;font-size:.72rem}
+.start__warn a{color:#fff;border-bottom:1px solid currentColor}
+.gfxerr{position:fixed;inset:0;z-index:60;display:none;place-items:center;text-align:center;background:rgba(5,5,5,.94);padding:2rem}
+.gfxerr.is-on{display:grid}
+.gfxerr h2{font-weight:200;font-size:clamp(2rem,6vw,4rem);letter-spacing:-.04em;margin-bottom:1rem}
+.gfxerr p{color:var(--dim);margin-bottom:1.2rem}
+.gfxerr button,.gfxerr a{display:inline-block;padding:.8rem 1.3rem;border:1px solid var(--pink);border-radius:99px;background:rgba(255,45,138,.1);color:var(--fg);font:inherit;cursor:pointer;margin:.3rem}
+:focus-visible{outline:2px solid #7ee0ff;outline-offset:3px;border-radius:4px}
