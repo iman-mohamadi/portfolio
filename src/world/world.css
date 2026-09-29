@@ -194,3 +194,10 @@ kbd{font:400 .68rem var(--mono);padding:.15em .5em;border:1px solid var(--faint)
 .skip:focus{top:8px}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 @media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}.pulse,.game__go{animation:none!important}}
+
+/* phones (portrait): utility buttons become a compact column above the joystick so the top bar stays clear */
+@media (pointer:coarse) and (orientation:portrait){
+  .hud__stats{gap:0}
+  .hud__btns{position:fixed;left:calc(var(--sal) + var(--pad));top:calc(52dvh + 6px);flex-direction:column;gap:.4rem;align-items:flex-start}
+  .hud__btns button{padding:.4rem .7rem;font-size:.58rem;min-width:74px;text-align:left}
+}
