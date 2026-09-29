@@ -146,8 +146,17 @@ export function createAtmosphere({ scene, sky, hemi, sun, bloom, renderer, unifo
     audio.mood?.(day)
   }
 
+  /** Compile the wet (env-mapped) shader variants once at boot so the first rain shower does not hitch. */
+  function warm() {
+    if (!PBR || !envTex || !wetMats.length) return
+    for (const m of wetMats) { m.envMap = envTex; m.needsUpdate = true }
+    renderer.compile(scene, camera)
+    for (const m of wetMats) { m.envMap = null; m.needsUpdate = true }
+    renderer.compile(scene, camera)
+  }
+
   return {
-    update, state, setTime, setWeather, setEnv(t) { envTex = t },
+    update, state, setTime, setWeather, warm, setEnv(t) { envTex = t },
     cycleTime() { setTime(cycle(TIME_MODES, state.timeMode)); return state.timeMode },
     cycleWeather() { setWeather(cycle(WEATHER_MODES, state.wxMode)); return state.wxMode },
     get clock() { return hhmm() }, get phase() { return phase() },

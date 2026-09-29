@@ -1,4 +1,33 @@
 import * as THREE from 'three'
+import { dynamicInstances } from './kits.js'
+
+/** Crash debris: real bumper / door / tyre / plate models from the car kit thrown out on a hit, bouncing on the tarmac and shrinking away. */
+export function createDebris({ scene, kits, plainMat, perModel = 6 }) {
+  const NAMES = ['car/debris-bumper', 'car/debris-door', 'car/debris-tire', 'car/debris-plate-a', 'car/debris-spoiler-a', 'car/debris-bolt']
+  const groups = []
+  for (const n of NAMES) { const model = kits.cars.get(n); if (!model) continue; const di = dynamicInstances(model, perModel, { material: plainMat }); di.use(perModel); di.meshes.forEach((m) => scene.add(m)); groups.push({ di, items: Array.from({ length: perModel }, () => ({ life: 0, x: 0, y: -9, z: 0, vx: 0, vy: 0, vz: 0, rx: 0, ry: 0, rz: 0, wx: 0, wy: 0, wz: 0, s: 1 })), head: 0 }) }
+  return {
+    burst(x, y, z, vx, vz, n = 5, s = 1.7) {
+      for (let k = 0; k < n; k++) {
+        const g = groups[Math.floor(Math.random() * groups.length)]; if (!g) return
+        const it = g.items[g.head++ % g.items.length]
+        Object.assign(it, { life: 2.6 + Math.random() * 1.2, x, y: y + 0.3, z, vx: vx * 0.5 + (Math.random() - 0.5) * 9, vy: 3 + Math.random() * 6, vz: vz * 0.5 + (Math.random() - 0.5) * 9, wx: (Math.random() - 0.5) * 14, wy: (Math.random() - 0.5) * 14, wz: (Math.random() - 0.5) * 14, s })
+      }
+    },
+    update(dt) {
+      for (const g of groups) {
+        g.items.forEach((it, i) => {
+          if (it.life <= 0) { g.di.set(i, 0, -20, 0, 0, 0); return }
+          it.life -= dt; it.vy -= 22 * dt; it.x += it.vx * dt; it.y += it.vy * dt; it.z += it.vz * dt
+          if (it.y < 0.2) { it.y = 0.2; if (it.vy < -2) { it.vy *= -0.38; it.vx *= 0.7; it.vz *= 0.7; it.wx *= 0.6; it.wz *= 0.6 } else { it.vy = 0; it.vx *= 0.92; it.vz *= 0.92 } }
+          it.rx += it.wx * dt; it.ry += it.wy * dt; it.rz += it.wz * dt
+          g.di.set(i, it.x, it.y, it.z, it.ry, it.s * Math.min(1, it.life * 1.5), it.rx, it.rz)
+        })
+        g.di.commit()
+      }
+    },
+  }
+}
 
 /** Scoring chain: drifts, jumps, flips, near-misses, smashes and rings stack into a multiplier; the chain banks as cash when it times out. */
 export function createScore({ toast, onBank = () => {} }) {

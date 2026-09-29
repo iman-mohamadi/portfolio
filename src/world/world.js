@@ -13,7 +13,7 @@ import { createAudio } from './audio.js'
 import { initAnalytics, track } from './analytics.js'
 import { $, clamp, lerp, damp, PINK, VIOLET, F_SANS, F_SERIF, F_MONO, canvasTex, basic, glow, dark, sprite, seeded } from './helpers.js'
 import { createStations } from './stations.js'
-import { createScore, createRings } from './stunts.js'
+import { createScore, createRings, createDebris } from './stunts.js'
 import { createTraffic } from './traffic.js'
 import { createModes } from './modes.js'
 import { createGarage } from './garage.js'
@@ -243,8 +243,8 @@ const plainMat = (part) => {
 }
 const orbs = []
 const orbInfo = { got: 0 }
-const orbMesh = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(0.55, 1), new THREE.MeshBasicMaterial({ color: 0xa892ff, toneMapped: false }), 32)
-const haloMesh = new THREE.InstancedMesh(new THREE.TorusGeometry(0.9, 0.04, 6, 20), new THREE.MeshBasicMaterial({ color: PINK, toneMapped: false }), 32)
+const orbMesh = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(0.55, 1), new THREE.MeshBasicMaterial({ color: 0xa892ff, toneMapped: false }), 40)
+const haloMesh = new THREE.InstancedMesh(new THREE.TorusGeometry(0.9, 0.04, 6, 20), new THREE.MeshBasicMaterial({ color: PINK, toneMapped: false }), 40)
 orbMesh.frustumCulled = haloMesh.frustumCulled = false; scene.add(orbMesh, haloMesh)
 
 /** Random points on the road network, spread apart and away from the given spots. */
@@ -264,11 +264,13 @@ function spawnProps(city, kits) {
     const model = kits.cars.get(name); if (!model) continue
     const di = dynamicInstances(model, n, { material: plainMat }); di.use(n)
     di.meshes.forEach((m) => scene.add(m)); props.groups.push(di)
-    roadSpots(city, n, 6, rnd, avoid).forEach(([x, z], k) => pushables.push({ x, z, vx: 0, vz: 0, r, y: 0, s, rx: 0, ry: rnd() * 6.28, rz: 0, di, idx: k }))
+    roadSpots(city, n, 6, rnd, avoid).forEach(([x, z], k) => pushables.push({ x, z, vx: 0, vz: 0, r, y: 0.22, s, rx: 0, ry: rnd() * 6.28, rz: 0, di, idx: k }))
   }
   // orbs sit on the roads, spread across the whole map
   const spots = roadSpots(city, 32, 42, seeded(77), avoid)
   spots.forEach(([x, z], i) => orbs.push({ x, z, y: 1.3, alive: true, name: ORB_NAMES[i % ORB_NAMES.length], phase: rnd() * 6 }))
+  // a few sit in mid-air along the stunt jumps: only reachable by flying
+  for (const [x, y, z] of [[-144, 4.6, -7], [-144, 4.9, 5], [-96, 9.4, -5], [-96, 10.4, 8], [-120, 4.8, -24], [-72, 7.2, -24]]) orbs.push({ x, z, y, alive: true, name: 'Big air', phase: rnd() * 6 })
   $('#orbTotal').textContent = orbs.length
 }
 
@@ -509,7 +511,10 @@ function autopilot(dt) {
   // slow down for the corner after this waypoint
   const nx = TOUR[tour.i + 1]; let corner = 1
   if (nx && !w.dwell) { const a1 = Math.atan2(dx, dz), a2 = Math.atan2(nx.p[0] - w.p[0], nx.p[1] - w.p[1]), da = Math.abs(Math.atan2(Math.sin(a2 - a1), Math.cos(a2 - a1))); corner = 1 - clamp(da / 1.2, 0, 0.62) * clamp(1 - d / 34, 0, 1) }
-  const align = Math.max(0, Math.cos(err)), vmax = (w.dwell ? clamp(d * 1.5, 5, 22) : 22) * corner * (0.35 + 0.65 * align)
+  // ease off behind other cars on the road
+  let front = 1e9; const afx = -Math.sin(car.ang), afz = -Math.cos(car.ang)
+  if (traffic) for (const a of traffic.agents) { if (a.hit > 0) continue; const rx = a.x - car.pos.x, rz = a.z - car.pos.z, f = rx * afx + rz * afz, l = rx * -afz + rz * afx; if (f > 0 && f < 24 && Math.abs(l) < 3.4) front = Math.min(front, f) }
+  const align = Math.max(0, Math.cos(err)), vmax = Math.min((w.dwell ? clamp(d * 1.5, 5, 22) : 22) * corner * (0.35 + 0.65 * align), front < 1e8 ? Math.max(0, (front - 6) * 1.2) : 99)
   return { f: car.speed < vmax ? 1 : car.speed > vmax + 3 ? -0.5 : 0.15, t: clamp(-err * 2.4, -1, 1), boost: d > 70 && align > 0.97 && corner > 0.9 && car.energy > 0.6, drift: false }
 }
 function getInput(dt) {
@@ -523,7 +528,7 @@ function getInput(dt) {
   return { f, t, boost: keys.ShiftLeft || keys.ShiftRight || boostBtn || !!padS?.boost, drift: !!keys.Space || driftBtn || !!padS?.drift }
 }
 const TAU = Math.PI * 2, GRAV = 21
-let city = null, score = null, rings = null, traffic = null
+let city = null, score = null, rings = null, traffic = null, debris = null
 const blockedAt = (x, z) => city.heightAt(x, z) - car.y > (car.air ? 2.2 : 0.85)
 function updateCar(dt, t) {
   const inp = started ? getInput(dt) : IDLE
@@ -541,7 +546,7 @@ function updateCar(dt, t) {
   // lateral grip (drifts when handbrake) — none in the air
   const rx = -fz, rz = fx
   const latSpeed = car.vel.x * rx + car.vel.y * rz
-  const grip = air ? 0 : inp.drift ? 1.1 : st.grip
+  const grip = air ? 0 : inp.drift ? 1.1 : st.grip * (1 - clamp(atmo?.wet ?? 0, 0, 1) * 0.2) // wet roads = a little less grip
   const kill = latSpeed * (1 - Math.exp(-grip * dt))
   car.vel.x -= rx * kill; car.vel.y -= rz * kill
   const drag = air ? 0.04 : inp.f === 0 ? 1.6 : 0.35
@@ -611,6 +616,7 @@ function updateCar(dt, t) {
   }
   // sparks: drift smoke + boost flame
   const drifting = !air && Math.abs(latSpeed) > 4
+  audio.skid(drifting && started ? clamp((Math.abs(latSpeed) - 3.5) / 9, 0.15, 1) : 0)
   if (drifting || car.boost > 0.5) {
     for (const s of [-1, 1]) {
       const bx = car.pos.x - fx * car.rearOff + rx * s * car.track, bz = car.pos.z - fz * car.rearOff + rz * s * car.track
@@ -633,7 +639,7 @@ function ringHit(r) {
 }
 const trafficFx = {
   onHit(a, nx, nz, rel) {
-    if (rel > 4) { audio.thud(); buzz(26); shake = Math.max(shake, Math.min(0.5, rel * 0.025)); sparks.burst(a.x - nx * 1.4, 0.9, a.z - nz * 1.4, 0xffd27a, 18, 8); score?.add('smash', 130) }
+    if (rel > 4) { audio.thud(); buzz(26); shake = Math.max(shake, Math.min(0.5, rel * 0.025)); sparks.burst(a.x - nx * 1.4, 0.9, a.z - nz * 1.4, 0xffd27a, 18, 8); score?.add('smash', 130); debris?.burst(a.x - nx * 1.4, 0.5, a.z - nz * 1.4, car.vel.x, car.vel.y, rel > 12 ? 7 : 4) }
   },
   onNear() { score?.add('near', 110); audio.blip() },
 }
@@ -697,7 +703,7 @@ function updateOrbs(dt, t) {
 }
 function unlockSecret() {
   secret = true; track('all_orbs')
-  toast('✦ All 32 orbs — secret unlocked: rainbow trails. Now let’s talk →', 4200)
+  toast(`✦ All ${orbs.length} orbs — secret unlocked: rainbow trails. Now let’s talk →`, 4200)
   for (let i = 0; i < 40; i++) sparks.emit(car.pos.x, 1.5, car.pos.z, (Math.random() - 0.5) * 14, 4 + Math.random() * 8, (Math.random() - 0.5) * 14, new THREE.Color().setHSL(Math.random(), 0.9, 0.6), 1.2)
 }
 
@@ -804,7 +810,7 @@ function tick() {
   if (frame % 30 === 0) paintClock()
   updateCar(dt, t)
   updatePushables(dt); updateOrbs(dt, t)
-  traffic?.update(dt, car, atmo ? atmo.state.night : 1, trafficFx)
+  traffic?.update(dt, car, atmo ? atmo.state.night : 1, trafficFx); debris?.update(dt)
   for (const f of tickers) f(t, dt)
   sparks.update(dt)
 
@@ -994,6 +1000,7 @@ async function boot() {
   envTex = neonEnv()
   spawnProps(city, kits); stations.buildAll(); TOUR = buildTourRoute(city, ZONES); buildMinimap(city); setPct(90)
   traffic = createTraffic({ scene, kits, city, count: isMobile ? 14 : 28, plainMat }); traffic.init(0, 28)
+  debris = createDebris({ scene, kits, plainMat, perModel: isMobile ? 4 : 7 })
   modes = createModes({
     scene, city, car, traffic, score, toast, audio, sparks, kits, plainMat, track, placeCar, frame: () => frame,
     chip: (on) => tourChip.classList.toggle('is-on', on), chipHTML: (h) => { tourChip.innerHTML = h },
@@ -1006,7 +1013,7 @@ async function boot() {
   atmo = createAtmosphere({ scene, sky, hemi, sun: moon, bloom, renderer, uniforms, camera, isMobile, audio, city }); atmo.setEnv(envTex); atmo.update(0, 0); sky.bake(true); paintClock()
   if (import.meta.env.DEV) { window.__city = city; window.__atmo = atmo; window.__kits = kits; window.__modes = modes; window.__garage = garage; window.__score = score }
   const models = await modelsP; applyModels(models); garage.init(); showCredits(models.credits); setPct(97)
-  renderer.compile(scene, camera); composer.render(); setPct(100)
+  renderer.compile(scene, camera); atmo.warm(); composer.render(); setPct(100)
   ready = true
   btn.disabled = false; $('#startLabel').textContent = coarse ? 'Tap to start' : 'Press Enter to start'
   btn.addEventListener('click', startGame)

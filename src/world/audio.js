@@ -1,6 +1,6 @@
 // Tiny WebAudio synth: engine hum, ambient pad, generative music, rain, thunder, chimes and thuds. No asset files.
 export function createAudio() {
-  let noiseBuf, ctx, master, eng1, eng2, engGain, filt, on = false, arp, arpLp, rainGain, speedN = 0, lastRain = -1, lastMood = -1
+  let skidGain, lastSkid = -1, noiseBuf, ctx, master, eng1, eng2, engGain, filt, on = false, arp, arpLp, rainGain, speedN = 0, lastRain = -1, lastMood = -1
   let muted = false
   try { muted = localStorage.getItem('im-muted') === '1' } catch (_) { /* private mode */ }
 
@@ -25,6 +25,10 @@ export function createAudio() {
     const rhp = ctx.createBiquadFilter(); rhp.type = 'highpass'; rhp.frequency.value = 700; const rlp = ctx.createBiquadFilter(); rlp.type = 'lowpass'; rlp.frequency.value = 7000
     rainGain = ctx.createGain(); rainGain.gain.value = 0; rs.connect(rhp); rhp.connect(rlp); rlp.connect(rainGain); rainGain.connect(master); rs.start()
     noiseBuf = nb
+    // tyre squeal: the same noise through a resonant band-pass, opened by drifting
+    const ss = ctx.createBufferSource(); ss.buffer = nb; ss.loop = true; ss.playbackRate.value = 0.8
+    const sbp = ctx.createBiquadFilter(); sbp.type = 'bandpass'; sbp.frequency.value = 1500; sbp.Q.value = 6
+    skidGain = ctx.createGain(); skidGain.gain.value = 0; ss.connect(sbp); sbp.connect(skidGain); skidGain.connect(master); ss.start()
     on = true
     // generative music: chord-following arpeggio through a feedback delay, tempo rises with speed
     arp = ctx.createGain(); arp.gain.value = 0.5
@@ -63,6 +67,8 @@ export function createAudio() {
       engGain.gain.setTargetAtTime(0.03 + throttle * 0.035 + speed * 0.06, t, 0.1)
     },
     chime(n = 0) { const f = 587 * Math.pow(1.122, n % 8); tone(f, 0.28, 'sine', 0.16); setTimeout(() => tone(f * 1.5, 0.35, 'sine', 0.1), 70) },
+    /** 0..1 amount of tyre squeal. */
+    skid(v) { if (!on || Math.abs(v - lastSkid) < 0.02) return; lastSkid = v; skidGain.gain.setTargetAtTime(v * 0.07, ctx.currentTime, 0.06) },
     rain(w) { if (!on || Math.abs(w - lastRain) < 0.01) return; lastRain = w; rainGain.gain.setTargetAtTime(w * 0.16, ctx.currentTime, 0.4) },
     /** Distant rumble: low-passed noise that swells and rolls off. */
     thunder() {

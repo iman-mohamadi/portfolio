@@ -142,7 +142,11 @@ export function createCity({ scene, kits, uniforms, mobile, seed = 42 }) {
   for (const [k, r] of jumpTiles) { const [i, j] = k.split(',').map(Number), x = tileX(i), z = tileZ(j), [name, top] = RAMP_KIT[r.kind]; put('city', name, x, z, r.ry, T); slant(x, z, r.ry, top) }
   const bxy = (bx, bz, col, row) => [blockCenter(bx) + (col - 1) * T, blockCenter(bz) + (row - 1) * T]
   const blockRamp = (kind, bx, bz, col, row, ry) => { const [x, z] = bxy(bx, bz, col, row), [name, top] = RAMP_KIT[kind]; put('city', name, x, z, ry, T); slant(x, z, ry, top) }
-  const plateau = (bx, bz, col, row, levels = 1) => { const [x, z] = bxy(bx, bz, col, row); for (let k = 0; k < levels; k++) put('city', 'road/tile-high', x, z, 0, T, k * 0.25 * T); pieces.set(tkey(x, z), { flat: true, top: 0.25 * T * levels }) }
+  const plateau = (bx, bz, col, row, levels = 1) => {
+    const [x, z] = bxy(bx, bz, col, row); for (let k = 0; k < levels; k++) put('city', 'road/tile-high', x, z, 0, T, k * 0.25 * T); pieces.set(tkey(x, z), { flat: true, top: 0.25 * T * levels })
+    // flags on the corners so the plateaus read from across town
+    for (const [dx, dz] of [[-5, -5], [5, -5], [-5, 5], [5, 5]]) put('racing', levels > 1 ? 'race/flagCheckers' : 'race/flagRed', x + dx, z + dz, rnd() * 6.28, 5, 0.25 * T * levels)
+  }
   const hoop = (x, y, z, yaw) => layout.rings.push({ x, y, z, yaw })
   /** Ground height under a world point (ramps and plateaus, otherwise the flat base). */
   layout.heightAt = (x, z) => {
@@ -155,7 +159,7 @@ export function createCity({ scene, kits, uniforms, mobile, seed = 42 }) {
   layout.jumpTiles = jumpTiles
   // rings hang over the flight paths of the road jumps
   hoop(-144, 4.5, 0, 0); hoop(-96, 8.7, 0, 0); hoop(-96, 9.9, 12, 0)
-  const arenaBlock = (bx, bz) => {
+  const arenaPieces = (bx, bz) => {
     const k = bx + ',' + bz, P = Math.PI
     if (k === '0,3') { plateau(bx, bz, 1, 1); blockRamp('slant', bx, bz, 0, 1, 0); blockRamp('slant', bx, bz, 2, 1, P); blockRamp('slant', bx, bz, 1, 0, -P / 2); blockRamp('slant', bx, bz, 1, 2, P / 2); hoop(-168, 6.2, -24, P / 2) }
     else if (k === '0,4') { blockRamp('high', bx, bz, 0, 1, 0); plateau(bx, bz, 1, 1, 2); hoop(-152, 4.4, 24, P / 2) }
@@ -163,6 +167,14 @@ export function createCity({ scene, kits, uniforms, mobile, seed = 42 }) {
     else if (k === '1,4') { blockRamp('high', bx, bz, 0, 1, 0); plateau(bx, bz, 1, 1, 2); plateau(bx, bz, 2, 1, 2); hoop(-96, 5.4, 24, P / 2) }
     else if (k === '2,3') { plateau(bx, bz, 1, 1); blockRamp('slant', bx, bz, 0, 1, 0); blockRamp('slant', bx, bz, 2, 1, P); blockRamp('slant', bx, bz, 1, 0, -P / 2); blockRamp('slant', bx, bz, 1, 2, P / 2); hoop(-72, 6.2, -24, P / 2) }
     else if (k === '2,4') { blockRamp('slant', bx, bz, 0, 1, P); hoop(-86, 3.2, 24, P / 2) }
+  }
+  const arenaBlock = (bx, bz) => {
+    arenaPieces(bx, bz)
+    // traffic cones along the block edges and hazard barriers at the corners — only where no ramp / plateau stands
+    const cx = blockCenter(bx), cz = blockCenter(bz), free = (x, z) => !pieces.has(tkey(x, z))
+    const cone = (x, z) => { if (free(x, z)) put('city', 'road/construction-cone', x, z, 0, T) }
+    for (let i = 0; i < 6; i++) { const t = -15 + i * 6; cone(cx + t, cz - 16.6); cone(cx + t, cz + 16.6); cone(cx - 16.6, cz + t); cone(cx + 16.6, cz + t) }
+    for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) if (free(cx + sx * 16, cz + sz * 16)) put('city', 'road/construction-barrier', cx + sx * 16, cz + sz * 16, Math.atan2(sx, sz), T)
   }
 
   /* ---- lamps along the roads ---- */
@@ -240,6 +252,12 @@ export function createCity({ scene, kits, uniforms, mobile, seed = 42 }) {
   { const m = new THREE.Matrix4(), sc = new THREE.Vector3(13, 1, 13), q = new THREE.Quaternion(); layout.lamps.forEach((l, i) => { const [hx, , hz] = lampHead(l); m.compose(new THREE.Vector3(hx, 0.09, hz), q, sc); pools.setMatrixAt(i, m) }) }
   pools.frustumCulled = false; pools.renderOrder = 2
   layout.lampGlow = { points: lampGlow, pools }
+
+  /* ---- distant mountains: oversized cliffs on a ring well beyond the trees (mostly swallowed by fog) ---- */
+  for (let k = 0; k < (mobile ? 22 : 40); k++) {
+    const a = (k / (mobile ? 22 : 40)) * 6.283 + rnd() * 0.12, d = 330 + rnd() * 90
+    put('nature', pick(['nat/rock_largeA', 'nat/rock_largeB', 'nat/rock_tallA']), Math.cos(a) * d, Math.sin(a) * d, rnd() * 6.28, NAT * (9 + rnd() * 9), -6)
+  }
 
   /* ---- draw everything: one InstancedMesh per model part ---- */
   const group = new THREE.Group(); group.name = 'city'; scene.add(group); group.add(lampGlow, pools)

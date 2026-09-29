@@ -61,6 +61,22 @@ try {
   await page.click('#qualBtn'); assert.match(await page.textContent('#qualBtn'), /⚙/)
   step('quality selector')
 
+  // game modes: play hub → street race countdown, then delivery rush, then the garage
+  await page.keyboard.press('g'); await page.waitForSelector('#hub.is-on', { timeout: 5000 })
+  assert.equal(await page.locator('#hubList li').count(), 6)
+  await page.click('#hubList button[data-run="race"]')
+  await page.waitForFunction(() => /Street Circuit|P\d\/4/.test(document.getElementById('tourChip').textContent), null, { timeout: 8000 })
+  step('play hub opens and the street race starts')
+  await page.keyboard.press('g'); await page.click('#hubList button[data-run="delivery"]')
+  await page.waitForFunction(() => /Pick up/.test(document.getElementById('tourChip').textContent) && !!document.querySelector('#navArrow.is-on'), null, { timeout: 8000 })
+  step('delivery rush starts with an objective arrow')
+  await page.keyboard.press('c'); await page.waitForSelector('#garage.is-on', { timeout: 5000 })
+  assert.equal(await page.locator('#garageList li').count(), 8)
+  await page.keyboard.press('Escape'); await page.waitForFunction(() => document.getElementById('garage').hidden, null, { timeout: 3000 })
+  step('garage lists eight cars and closes')
+  await page.keyboard.press('t') // leave the mode: starting the tour cancels it
+  await page.keyboard.down('w'); await page.waitForTimeout(300); await page.keyboard.up('w')
+
   assert.deepEqual(errors, [], 'no page errors: ' + errors.join(' | '))
   step('no console/page errors')
   console.log('\nSmoke test passed.')
