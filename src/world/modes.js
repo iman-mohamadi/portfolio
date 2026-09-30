@@ -18,17 +18,13 @@ export function createMarker(scene, color, { height = 70, radius = 4 } = {}) {
   }
 }
 
-/** A permanent landmark for a game hub: glowing ring on the tarmac, tall thin beam and a floating name. */
-export function createLandmark(scene, { x, z, label, sub, color = 0xff2d8a, radius = 7 }) {
+/** A quiet marker for an optional game hub: a thin ground ring and a small name — deliberately not a beacon. */
+export function createLandmark(scene, { x, z, label, sub, color = 0x9db8ff, radius = 6 }) {
   const g = new THREE.Group(); g.position.set(x, 0, z)
-  const ring = new THREE.Mesh(new THREE.RingGeometry(radius - 0.5, radius, 48), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.9, side: THREE.DoubleSide, toneMapped: false })); ring.rotation.x = -Math.PI / 2; ring.position.y = 0.32
-  const disc = new THREE.Mesh(new THREE.CircleGeometry(radius - 0.6, 40), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.12, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, side: THREE.DoubleSide })); disc.rotation.x = -Math.PI / 2; disc.position.y = 0.31
-  const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.9, 42, 12, 1, true), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.32, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, toneMapped: false })); beam.position.y = 21
-  const tag = sprite(label, { size: 1.5, font: `italic 400 130px ${F_SERIF}`, accent: '#' + new THREE.Color(color).getHexString() }); tag.position.y = 13
-  g.add(ring, disc, beam, tag)
-  if (sub) { const s2 = sprite(sub, { size: 0.55, font: "300 92px 'JetBrains Mono', monospace", color: '#cfd6ff' }); s2.position.y = 10.2; g.add(s2) }
-  scene.add(g)
-  return { g, update(t) { ring.rotation.z = t * 0.5; tag.position.y = 13 + Math.sin(t * 1.6) * 0.3 } }
+  const ring = new THREE.Mesh(new THREE.RingGeometry(radius - 0.22, radius, 64), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.55, side: THREE.DoubleSide, toneMapped: false })); ring.rotation.x = -Math.PI / 2; ring.position.y = 0.32
+  const tag = sprite(label.toUpperCase(), { size: 0.55, font: "300 92px 'JetBrains Mono', monospace", color: '#cfd6e6', accent: '#000' }); tag.position.y = 3.2; tag.material.opacity = 0.75
+  g.add(ring, tag); scene.add(g)
+  return { g, update() {} }
 }
 
 const fmt = (s) => { const m = Math.floor(s / 60), r = s - m * 60; return `${m}:${r.toFixed(1).padStart(4, '0')}` }

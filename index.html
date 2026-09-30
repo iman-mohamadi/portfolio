@@ -3,22 +3,22 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>Iman Mohammadi — Drive My Portfolio</title>
-  <meta name="description" content="Iman Mohammadi — senior front-end architect & WebGL specialist. This portfolio is a 3D world: drive around to explore my work, skills and career." />
+  <title>Iman Mohammadi — Interactive 3D Portfolio</title>
+  <meta name="description" content="Iman Mohammadi — senior full-stack & 3D web engineer. An interactive 3D portfolio: explore a digital city to discover my experience, projects and 3D lab — or read it the quick way." />
   <meta name="theme-color" content="#050505" />
   <link rel="canonical" href="https://iman-mhmdi.ir/" />
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="Iman Mohammadi" />
-  <meta property="og:title" content="Iman Mohammadi — Drive My Portfolio" />
-  <meta property="og:description" content="A 3D world portfolio: drive a Lamborghini through the work, skills and career of senior front-end architect Iman Mohammadi — or take the auto tour." />
+  <meta property="og:title" content="Iman Mohammadi — Interactive 3D Portfolio" />
+  <meta property="og:description" content="Explore Iman Mohammadi's digital city: experience, projects and a 3D lab — or skip straight to the portfolio." />
   <meta property="og:url" content="https://iman-mhmdi.ir/" />
   <meta property="og:image" content="https://iman-mhmdi.ir/og.jpg" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
-  <meta property="og:image:alt" content="A neon 3D world with a Lamborghini and the title Drive my portfolio" />
+  <meta property="og:image:alt" content="A 3D city at dusk with a Lamborghini and the title Drive my portfolio" />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="Iman Mohammadi — Drive My Portfolio" />
-  <meta name="twitter:description" content="A 3D world portfolio: drive a Lamborghini through the work, skills and career of senior front-end architect Iman Mohammadi — or take the auto tour." />
+  <meta name="twitter:title" content="Iman Mohammadi — Interactive 3D Portfolio" />
+  <meta name="twitter:description" content="Explore Iman Mohammadi's digital city: experience, projects and a 3D lab — or skip straight to the portfolio." />
   <meta name="twitter:image" content="https://iman-mhmdi.ir/og.jpg" />
   <meta name="author" content="Iman Mohammadi" />
   <script type="application/ld+json">{"@context": "https://schema.org", "@type": "Person", "name": "Iman Mohammadi", "jobTitle": "Senior Front-End Architect", "description": "Senior front-end and full-stack developer specialising in Vue, Nuxt, Next.js, Three.js and WebGL.", "url": "https://iman-mhmdi.ir", "email": "mailto:im.enzo.021@gmail.com", "address": {"@type": "PostalAddress", "addressLocality": "Tehran", "addressCountry": "IR"}, "sameAs": ["https://github.com/iman-mohamadi", "https://t.me/iEnzO", "https://instagram.com/im_mhmdi"], "knowsAbout": ["Vue.js", "Nuxt", "Next.js", "React", "Three.js", "WebGL", "GLSL", "GSAP", "TypeScript", "Tailwind CSS"]}</script>
@@ -30,65 +30,88 @@
   <link rel="manifest" href="/manifest.webmanifest" />
 </head>
 <body>
-  <nav aria-label="Alternative version"><a class="skip mono" href="#text-version">Skip 3D — read the text version</a></nav>
+  <nav aria-label="Alternative version"><a class="skip mono" href="#portfolio2d" data-open2d>Skip 3D — read the portfolio as text</a></nav>
   <canvas id="world" aria-hidden="true"></canvas>
 
-  <!-- Loading / start -->
+  <!-- Arrival: a quiet black screen while the city loads -->
   <div class="start" id="start" role="region" aria-label="Welcome">
-    <div class="start__top mono"><span>Iman Mohammadi</span></div>
-    <div class="start__mid">
-      <p class="mono start__tag">Senior Front-End Architect · WebGL &amp; 3D Web</p>
-      <h1>Drive<br /><span class="serif">my portfolio</span></h1>
-      <p class="start__lead">This site is a 3D world. Take the wheel, explore the zones and meet me along the way.</p>
-      <p class="start__warn mono" id="motionWarn" hidden>Your device asks for reduced motion — effects like screen shake and blur are turned down.</p>
-      <p class="start__warn mono" id="startWarn" hidden>No GPU detected — this may run slowly. Use the ⚙ button to lower graphics quality, or add <b>?quality=high</b> to the address to force full quality.</p>
-      <div class="start__cta"><button class="start__btn mono" id="startBtn" disabled><span id="startLabel">Loading world… <b id="loadPct">0</b>%</span></button>
-      <button class="start__btn start__btn--ghost mono" id="tourBtn" disabled>▶ Auto tour <em>— sit back, I'll drive</em></button></div>
-      <div class="start__keys mono">
-        <span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> / arrows — drive</span>
-        <span><kbd>Shift</kbd> boost</span>
-        <span><kbd>Space</kbd> drift</span>
-        <span><kbd>E</kbd> interact</span>
-        <span><kbd>T</kbd> auto tour</span>
-        <span><kbd>R</kbd> time trial</span>
-        <span><kbd>P</kbd> photo</span>
+    <div class="start__inner">
+      <p class="start__eyebrow mono">Interactive portfolio</p>
+      <h1 class="start__name"><span>Iman</span> <em>Mohammadi</em></h1>
+      <p class="start__role mono">Senior Full-Stack &amp; 3D Web Engineer</p>
+      <i class="start__rule" aria-hidden="true"></i>
+      <p class="start__welcome">Welcome to my digital world.<br />Explore my work, experience and experiments.</p>
+      <p class="start__warn mono" id="motionWarn" hidden>Your device asks for reduced motion — camera moves and effects are kept minimal.</p>
+      <p class="start__warn mono" id="startWarn" hidden>No GPU detected — the 3D world may run slowly. The portfolio is also available without driving.</p>
+      <div class="start__cta">
+        <button class="cta cta--main mono" id="startBtn" disabled><span id="startLabel">Loading <b id="loadPct">0</b>%</span></button>
+        <button class="cta cta--ghost mono" id="twoDBtn" type="button">Read the portfolio</button>
       </div>
+      <p class="start__alt mono"><button class="link" id="tourBtn" type="button" disabled>Prefer to sit back? Take the guided tour →</button></p>
     </div>
     <div class="start__bar"><i id="loadBar"></i></div>
   </div>
 
   <!-- HUD -->
-  <div class="hud" id="hud" role="region" aria-label="Game controls">
-    <div class="hud__brand mono"><a href="#" data-nav="home">IM<em>.</em></a></div>
-    <nav class="hud__nav mono" id="nav" aria-label="Fast travel"></nav>
-    <div class="hud__stats mono"><span>Orbs <b id="orbCount">0</b>/<span id="orbTotal">0</span></span><span class="cash" title="Cash earned from stunts, races and deliveries">$ <b id="cashN">0</b></span><span class="dim" id="fps">— fps</span><span class="hud__btns"><button class="mono play-m" data-hub aria-label="Play menu">◈ Play</button><button class="mono" id="todBtn" aria-label="Time of day">☾ --:--</button><button class="mono" id="wxBtn" aria-label="Weather">Sky: Auto</button><button class="mono" id="qualBtn" aria-label="Graphics quality">⚙ Auto</button><button class="mono" id="photoBtn" aria-label="Save a photo">◉ Photo</button><button class="mono" id="muteBtn" aria-label="Toggle sound">♪ on</button><button class="mono" id="creditsBtn" hidden>Credits</button></span></div>
-    <div class="hud__loc mono" id="loc"></div>
-    <canvas id="mini" width="300" height="300" aria-hidden="true"></canvas>
+  <div class="hud" id="hud" role="region" aria-label="Portfolio HUD">
+    <section class="where" aria-label="Where you are">
+      <p class="where__district mono"><svg class="pin" viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><path d="M8 1.2a4.6 4.6 0 0 0-4.6 4.6C3.4 9.4 8 14.8 8 14.8s4.6-5.4 4.6-9A4.6 4.6 0 0 0 8 1.2Zm0 6.4a1.8 1.8 0 1 1 0-3.6 1.8 1.8 0 0 1 0 3.6Z" fill="currentColor"/></svg><span id="whereDistrict">Iman’s Digital City</span></p>
+      <h2 class="where__name" id="whereName"></h2>
+      <button class="objective" id="objective" type="button" aria-label="Current objective: show me the way">
+        <span class="objective__label mono">Current objective</span>
+        <span class="objective__title" id="objTitle">—</span>
+        <span class="objective__meta mono"><span id="objDist"></span><span id="objCount"></span></span>
+        <span class="objective__bar" aria-hidden="true"><i id="objBar"></i></span>
+      </button>
+    </section>
+    <nav class="jbar mono" id="jbar" aria-label="Your journey"></nav>
+    <div class="tools">
+      <button class="tool mono" id="menuBtn" type="button" aria-haspopup="dialog">Menu <kbd>Tab</kbd></button>
+      <button class="tool tool--hire mono" id="hireBtn" type="button">Hire me</button>
+      <button class="tool tool--icon mono" id="muteBtn" type="button" aria-label="Toggle sound" aria-pressed="true">Sound on</button>
+    </div>
+    <canvas id="mini" width="440" height="440" aria-hidden="true"></canvas>
+    <div class="prompt" id="prompt" aria-live="polite"><button class="prompt__btn" id="promptBtn" type="button"><kbd>E</kbd><span class="prompt__text mono" id="promptText"></span></button><span class="prompt__sub" id="promptSub"></span></div>
     <div class="hud__speed mono" id="speed"><b id="spd">000</b><span>km/h</span><i class="energy" title="Boost energy"><em id="energy"></em></i></div>
     <div class="combo mono" id="combo" aria-hidden="true"><b id="comboPts">0</b><span id="comboLbl"></span><i><em id="comboBar"></em></i></div>
     <div class="tourchip mono" id="tourChip"></div>
-    <div class="hud__hint mono" id="hint">Drive to a glowing zone <span class="dim">·</span> <kbd>1</kbd>–<kbd>6</kbd> travel <span class="dim">·</span> <kbd>G</kbd> play menu <span class="dim">·</span> <kbd>T</kbd> auto tour <span class="dim">·</span> jump the ramps, grab the blue pads for boost</div>
+    <div class="hint mono" id="hint"></div>
   </div>
-  <div class="navarrow mono" id="navArrow" aria-hidden="true"><svg viewBox="0 0 40 40" width="40" height="40"><path d="M20 4 L34 32 L20 25 L6 32 Z" fill="currentColor"/></svg><span id="navDist"></span></div>
-  <section class="menu" id="hub" hidden role="dialog" aria-modal="true" aria-label="Play menu">
-    <div class="menu__card"><header><h2>Play</h2><button class="mono" data-close aria-label="Close menu">Close ✕</button></header><ul id="hubList" class="hub__list"></ul><p class="mono dim">Cash <b id="hubCash">0</b> · earn it from chains, jumps, races and deliveries</p></div>
+  <div class="navarrow mono" id="navArrow" aria-hidden="true"><svg viewBox="0 0 40 40" width="34" height="34"><path d="M20 4 L34 32 L20 25 L6 32 Z" fill="currentColor"/></svg><span id="navDist"></span></div>
+
+  <div class="discover" id="discover" aria-live="polite"><i aria-hidden="true"></i><p class="mono">Location discovered</p><h3 id="discoverName"></h3><p class="mono" id="discoverCount"></p></div>
+  <div class="intro" id="intro" aria-live="polite"><p id="introLine"></p></div>
+
+  <!-- A location, presented as a chapter -->
+  <section class="chapter" id="chapter" role="dialog" aria-modal="true" aria-labelledby="chTitle" hidden>
+    <div class="chapter__veil" data-close></div>
+    <article class="chapter__card" id="chCard" tabindex="-1"></article>
+  </section>
+
+  <!-- Menu: world map, journal, play, settings -->
+  <section class="menu2" id="menu" role="dialog" aria-modal="true" aria-label="Menu" hidden>
+    <div class="menu2__veil" data-close></div>
+    <div class="menu2__panel" id="menuPanel"></div>
   </section>
   <section class="menu garage" id="garage" hidden role="dialog" aria-label="Garage">
     <div class="menu__card"><header><h2>Garage</h2><span class="mono">$ <b id="garageCash">0</b></span><button class="mono" data-close aria-label="Close garage">Done ✕</button></header><ul id="garageList" class="garage__list"></ul></div>
   </section>
-  <aside class="panel" id="panel" aria-live="polite"></aside>
+
+  <!-- The whole portfolio without driving (also the fallback when 3D is unavailable) -->
+  <div class="p2d" id="portfolio2d" hidden role="dialog" aria-modal="true" aria-label="Portfolio"><div class="p2d__inner" id="p2dInner"></div></div>
+
   <div role="region" aria-label="Notifications"><div class="toast mono" id="toast" role="status"></div></div>
   <div class="sr" id="srLive" aria-live="polite"></div>
   <div class="flash" id="flash" aria-hidden="true"></div>
 
-  <div class="gfxerr" id="noGl" role="region" aria-label="WebGL required"><div role="alert"><h2>This world needs WebGL 2</h2><p>Your browser or device doesn't support it. Try an up-to-date Chrome, Edge, Firefox or Safari.</p><p>Meanwhile: <a href="mailto:im.enzo.021@gmail.com">im.enzo.021@gmail.com</a> · <a href="/Iman-Mohammadi-CV.pdf" download>CV</a> · <a href="https://github.com/iman-mohamadi">GitHub</a></p></div></div>
   <div class="gfxerr" id="gfxError" role="region" aria-label="Graphics error"><div role="alert"><h2>Graphics interrupted</h2><p>Your GPU reset this page (it can happen on low memory or when switching apps).</p><p><button class="mono" onclick="location.reload()">Reload the world</button></p></div></div>
 
   <!-- Touch controls -->
   <div class="touch" id="touch" role="region" aria-label="Touch controls">
     <div class="touch__zone" id="stickZone"><div class="stick" id="stick"><i id="knob"></i></div></div>
+    <div class="touch__look" id="lookZone"></div>
     <div class="touch__btns">
-      <button class="tbtn tbtn--act mono" id="actBtn">Next</button>
+      <button class="tbtn tbtn--act mono" id="actBtn">Enter</button>
       <button class="tbtn mono" id="driftBtn">Drift</button>
       <button class="tbtn tbtn--boost mono" id="boostBtn">Boost</button>
     </div>
@@ -96,8 +119,8 @@
   <div class="credits" id="credits" role="region" aria-label="Credits"></div>
 
   <!-- Same content, readable by screen readers / crawlers -->
-  <main class="sr" id="text-version"><a class="closetxt" href="#">Close text version</a>
-    <h1>Iman Mohammadi — Senior Front-End Architect, WebGL &amp; 3D Web Specialist</h1>
+  <main class="sr" id="text-version">
+    <h1>Iman Mohammadi — Senior Full-Stack &amp; 3D Web Engineer</h1>
     <p>Tehran, Iran · im.enzo.021@gmail.com · +98 938 424 9894 · <a href="https://github.com/iman-mohamadi">GitHub</a></p>
     <p>Senior front-end and full-stack developer with 9+ years of experience building high-performance web systems with Vue, Nuxt, Next.js, Three.js, WebGL and GSAP. Creator of the open-source Raya UI design system.</p>
     <h2>Selected work</h2>

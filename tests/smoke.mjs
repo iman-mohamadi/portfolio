@@ -33,49 +33,60 @@ try {
   }
   step('static assets (sw, manifest, og image, cv, models manifest)')
 
-  // 3D world
+  // arrival screen: quiet, with the 2D portfolio one click away
   await page.goto(`${BASE}/?quality=high`, { waitUntil: 'load' })
-  await page.waitForFunction(() => /Press Enter/.test(document.getElementById('startLabel')?.textContent || ''), null, { timeout: 120000 })
-  step('world loads (fonts, scene, car model)')
-  await page.keyboard.press('Enter')
+  await page.waitForFunction(() => /Enter my world/.test(document.getElementById('startLabel')?.textContent || ''), null, { timeout: 120000 })
+  step('arrival screen loads the world (fonts, city, car model)')
+  await page.click('#twoDBtn'); await page.waitForSelector('#portfolio2d:not([hidden])')
+  assert.ok((await page.textContent('#p2dInner')).includes('Iman'), 'name on the 2D page')
+  assert.equal(await page.locator('#p2dInner .grid .card').count(), 6, 'six project cards')
+  assert.ok(await page.$('#portfolio2d a[href="/Iman-Mohammadi-CV.pdf"]') && await page.$('#portfolio2d a[href^="mailto:"]'), 'CV + email on the 2D page')
+  await page.keyboard.press('Escape'); await page.waitForSelector('#portfolio2d', { state: 'hidden' })
+  step('read-without-driving page has every section, CV and email')
+
+  await page.click('#startBtn')
   await page.waitForSelector('#hud.is-on', { timeout: 15000 })
-  step('game starts, HUD visible')
+  await page.waitForFunction(() => document.getElementById('objTitle').textContent.trim().length > 1 && document.getElementById('whereDistrict').textContent.trim().length > 1, null, { timeout: 15000 })
+  assert.match(await page.textContent('#objTitle'), /Meet Iman/)
+  assert.equal(await page.locator('#jbar button').count(), 5, 'five journey steps')
+  step('game starts: location, objective and journey are on screen')
 
-  await page.keyboard.press('2'); await page.waitForFunction(() => /About/.test(document.getElementById('loc').textContent), null, { timeout: 15000 })
-  assert.ok(await page.isVisible('#panel.is-on'))
-  step('fast travel → About panel')
+  // menu → jump to About → prompt → chapter
+  await page.keyboard.press('Tab'); await page.waitForSelector('#menu:not([hidden]).is-on')
+  assert.equal(await page.locator('#menuPanel [data-row]').count(), 12, 'twelve locations in the journal')
+  await page.click('#menuPanel [data-act="jump"][data-id="about"]')
+  await page.waitForFunction(() => /Meet Iman/i.test(document.getElementById('promptText').textContent) && document.getElementById('prompt').classList.contains('is-on'), null, { timeout: 15000 })
+  assert.match(await page.textContent('#whereDistrict'), /Profile/)
+  step('menu → jump to Profile: district label + contextual prompt appear')
+  await page.keyboard.press('e'); await page.waitForSelector('#chapter.is-on', { timeout: 10000 })
+  assert.match(await page.textContent('#chTitle'), /Iman Mohammadi/)
+  assert.ok(await page.$('#chCard a[href="/Iman-Mohammadi-CV.pdf"]'), 'CV link in the profile chapter')
+  await page.keyboard.press('Escape'); await page.waitForSelector('#chapter', { state: 'hidden' })
+  await page.waitForFunction(() => /1 \/ 12/.test(document.getElementById('objCount').textContent))
+  step('chapter opens on E, shows the profile, closes on Esc, discovery counted')
 
-  await page.keyboard.press('6'); await page.waitForFunction(() => /Contact/.test(document.getElementById('loc').textContent), null, { timeout: 15000 })
-  assert.ok(await page.$('#panel a[href="/Iman-Mohammadi-CV.pdf"]'))
-  assert.ok(await page.$('#panel a[href^="mailto:"]'))
-  step('Contact panel has Hire me + CV download')
+  // recruiter path: Hire me → contact chapter without driving
+  await page.click('#hireBtn'); await page.waitForSelector('#chapter.is-on')
+  assert.ok(await page.$('#chCard a[href^="mailto:"]') && await page.$('#chCard a[href="https://github.com/iman-mohamadi"]'), 'email + GitHub in the contact chapter')
+  await page.keyboard.press('Escape'); await page.waitForSelector('#chapter', { state: 'hidden' })
+  step('Hire me opens the contact chapter with email, GitHub and CV')
 
-  await page.keyboard.press('t'); await page.waitForFunction(() => document.getElementById('tourChip').classList.contains('is-on') && /Auto tour/.test(document.getElementById('tourChip').textContent), null, { timeout: 8000 })
+  // guided tour
+  await page.keyboard.press('t'); await page.waitForFunction(() => document.getElementById('tourChip').classList.contains('is-on') && /Guided tour/.test(document.getElementById('tourChip').textContent), null, { timeout: 8000 })
   await page.keyboard.down('w'); await page.waitForFunction(() => !document.getElementById('tourChip').classList.contains('is-on'), null, { timeout: 5000 }); await page.keyboard.up('w')
-  step('auto tour starts and any input cancels it')
+  step('guided tour starts and any input cancels it')
 
-  await page.keyboard.press('r'); await page.waitForFunction(() => /Time trial|→/.test(document.getElementById('tourChip').textContent), null, { timeout: 8000 })
-  await page.keyboard.press('r')
-  step('time trial starts and cancels')
-
-  await page.click('#qualBtn'); assert.match(await page.textContent('#qualBtn'), /⚙/)
-  step('quality selector')
-
-  // game modes: play hub → street race countdown, then delivery rush, then the garage
-  await page.keyboard.press('g'); await page.waitForSelector('#hub.is-on', { timeout: 5000 })
-  assert.equal(await page.locator('#hubList li').count(), 6)
-  await page.click('#hubList button[data-run="race"]')
+  // optional games live in the menu
+  await page.keyboard.press('Tab'); await page.waitForSelector('#menu.is-on'); await page.click('#menuPanel [data-tab="play"]')
+  assert.ok((await page.locator('#menuPanel [data-play]').count()) >= 4)
+  await page.click('#menuPanel [data-play="race"]')
   await page.waitForFunction(() => /Street Circuit|P\d\/4/.test(document.getElementById('tourChip').textContent), null, { timeout: 8000 })
-  step('play hub opens and the street race starts')
-  await page.keyboard.press('g'); await page.click('#hubList button[data-run="delivery"]')
-  await page.waitForFunction(() => /Pick up/.test(document.getElementById('tourChip').textContent) && !!document.querySelector('#navArrow.is-on'), null, { timeout: 8000 })
-  step('delivery rush starts with an objective arrow')
+  await page.keyboard.press('Tab'); await page.click('#menuPanel [data-tab="play"]'); await page.click('#menuPanel [data-play="delivery"]')
+  await page.waitForFunction(() => /Pick up/.test(document.getElementById('tourChip').textContent), null, { timeout: 8000 })
   await page.keyboard.press('c'); await page.waitForSelector('#garage.is-on', { timeout: 5000 })
   assert.equal(await page.locator('#garageList li').count(), 8)
   await page.keyboard.press('Escape'); await page.waitForFunction(() => document.getElementById('garage').hidden, null, { timeout: 3000 })
-  step('garage lists eight cars and closes')
-  await page.keyboard.press('t') // leave the mode: starting the tour cancels it
-  await page.keyboard.down('w'); await page.waitForTimeout(300); await page.keyboard.up('w')
+  step('Play tab: race, delivery and garage all start from the menu')
 
   assert.deepEqual(errors, [], 'no page errors: ' + errors.join(' | '))
   step('no console/page errors')

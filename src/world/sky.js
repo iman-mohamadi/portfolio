@@ -23,16 +23,16 @@ export function createSky(scene, { mobile, renderer }) {
       vec3 c=vec3(0.);float cov=0.;
       // ---- night: neon horizon, stars, nebula, aurora (skipped in full daylight)
       if(uDay<.985){
-        c=mix(vec3(.10,.02,.11),vec3(.008,.008,.026),smoothstep(-.02,.6,h));
-        c+=vec3(1.,.16,.5)*.20*exp(-abs(h)*10.);
+        c=mix(vec3(.05,.07,.11),vec3(.006,.009,.022),smoothstep(-.02,.6,h));
+        c+=vec3(.95,.5,.3)*.11*exp(-abs(h)*10.);
         vec3 sp=d*230.;vec3 cell=floor(sp);float r=hash(cell);vec3 f=fract(sp)-.5;
         float star=step(.983,r)*smoothstep(.4,0.,length(f))*(.55+.45*sin(uTime*2.+r*60.));
         c+=vec3(.85,.82,1.)*star*smoothstep(0.,.2,h)*1.4;
         float n=fbm(d*2.4+vec3(0.,uTime*.008,0.)),n2=fbm(d*4.5+7.);
-        c+=mix(vec3(.30,.16,1.),vec3(1.,.14,.5),n2)*pow(smoothstep(.42,.9,n),1.7)*.6*smoothstep(.04,.5,h);
+        c+=mix(vec3(.16,.26,.7),vec3(.42,.3,.55),n2)*pow(smoothstep(.42,.9,n),1.7)*.32*smoothstep(.04,.5,h);
         float a=fbm(vec3(d.x*4.+uTime*.03,d.y*9.,d.z*3.));
         float cur=smoothstep(.52,.88,a)*smoothstep(.06,.28,h)*smoothstep(.8,.3,h);
-        c+=mix(vec3(.1,1.,.72),vec3(1.,.22,.7),.5+.5*sin(d.x*5.+uTime*.12))*cur*.55;
+        c+=mix(vec3(.2,.9,.8),vec3(.5,.6,1.),.5+.5*sin(d.x*5.+uTime*.12))*cur*.14;
         c*=1.-uDark*.7;
       }
       // ---- day: gradient, sun, drifting clouds (skipped in the dead of night)
@@ -85,16 +85,16 @@ export function createSky(scene, { mobile, renderer }) {
       ${NOISE}
       void main(){
         float band=sin(vP.y*.32+vnoise(vP*.08)*3.)*.5+.5;
-        vec3 base=mix(vec3(.22,.08,.5),vec3(1.,.28,.55),band);
+        vec3 base=mix(vec3(.17,.21,.33),vec3(.78,.58,.42),band);
         float l=clamp(dot(normalize(vN),uSun)*.5+.55,0.,1.);
         float rim=pow(1.-max(dot(normalize(vN),vV),0.),3.);
-        gl_FragColor=vec4(mix(uHaze,base*l*.8+vec3(.6,.4,1.)*rim*.9,uFade),1.);
+        gl_FragColor=vec4(mix(uHaze,base*l*.8+vec3(.62,.72,1.)*rim*.8,uFade),1.);
       }`,
   }))
   const ring = new THREE.Mesh(new THREE.RingGeometry(42, 74, 128, 1), new THREE.ShaderMaterial({
     uniforms: pu, transparent: true, side: THREE.DoubleSide, depthWrite: false, fog: false,
     vertexShader: 'varying vec2 vUv;varying float vR;void main(){vR=length(position.xy);vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
-    fragmentShader: 'varying float vR;uniform float uFade;void main(){float t=(vR-42.)/32.;float b=.5+.5*sin(vR*1.6)+.35*sin(vR*4.7);float a=smoothstep(0.,.08,t)*smoothstep(1.,.85,t)*(.25+.5*b);gl_FragColor=vec4(mix(vec3(.6,.4,1.),vec3(1.,.5,.75),t),a*.8*uFade);}',
+    fragmentShader: 'varying float vR;uniform float uFade;void main(){float t=(vR-42.)/32.;float b=.5+.5*sin(vR*1.6)+.35*sin(vR*4.7);float a=smoothstep(0.,.08,t)*smoothstep(1.,.85,t)*(.25+.5*b);gl_FragColor=vec4(mix(vec3(.66,.74,.92),vec3(.92,.72,.5),t),a*.8*uFade);}',
   }))
   ring.rotation.set(1.25, 0, 0.35)
   const pg = new THREE.Group(); pg.add(planet, ring); pg.position.set(-190, 120, -300); far.add(pg)

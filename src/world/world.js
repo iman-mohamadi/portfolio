@@ -12,13 +12,21 @@ import { createFxPass, Trail } from './fx.js'
 import { createAudio } from './audio.js'
 import { initAnalytics, track } from './analytics.js'
 import { $, clamp, lerp, damp, PINK, VIOLET, F_SANS, F_SERIF, F_MONO, canvasTex, basic, glow, dark, sprite, seeded } from './helpers.js'
-import { createStations } from './stations.js'
+import { createLandmarks } from './landmarks.js'
+import { createJourney } from './journey.js'
+import { createHud } from './hud.js'
+import { createChapter } from './chapter.js'
+import { createMenu } from './menu.js'
+import { createMapRenderer } from './minimap.js'
+import { createPortfolio2D } from './portfolio2d.js'
+import { createGuidance } from './guidance.js'
 import { createScore, createRings, createDebris } from './stunts.js'
 import { createTraffic } from './traffic.js'
 import { createModes } from './modes.js'
 import { createGarage } from './garage.js'
 import { buildTourRoute } from './tour.js'
-import { ZONES, PROJECTS, projZones, JOBS, SKILLS, STATS, DIALOGUE, ORB_NAMES, GATES } from './content.js'
+import { ZONES, LOCATIONS, GAMES, JOURNEY, DISTRICTS, CITY_NAME, districtAt, byId, PROFILE } from './portfolio.js'
+import { ORB_NAMES } from './content.js'
 
 /* ---- capability gate: no WebGL2 → friendly message; software renderer → low quality + notice */
 const qs = new URLSearchParams(location.search)
@@ -32,7 +40,11 @@ const gpuProbe = (() => {
     return { ok: true, name, soft: /swiftshader|llvmpipe|softpipe|software|basic render/i.test(name) }
   } catch (_) { return { ok: false } }
 })()
-if (!gpuProbe.ok) { document.getElementById('noGl').classList.add('is-on'); throw new Error('WebGL2 unavailable') }
+/** The portfolio without the 3D world: used when WebGL is missing, and on request. */
+const p2d = createPortfolio2D({ root: $('#portfolio2d'), inner: $('#p2dInner'), canEnter: () => gpuProbe.ok && !hard2D, onEnter: () => {}, onEvent: (ev, loc) => track('link_click', { kind: ev, loc }) })
+let hard2D = false
+function only2D(why) { hard2D = true; $('#start').classList.add('is-gone'); p2d.show(); track('fallback_2d', { why }) }
+if (!gpuProbe.ok) { only2D('no_webgl2'); throw new Error('WebGL2 unavailable') }
 const coarse = matchMedia('(pointer:coarse)').matches
 const isMobile = coarse || Math.min(innerWidth, innerHeight) < 600
 const forceHQ = qs.get('quality') === 'high'
@@ -45,7 +57,7 @@ if (!['auto', 'high', 'med', 'low'].includes(qMode)) qMode = 'auto'
 /* ------------------------------------------------------------------ renderer */
 const canvas = $('#world')
 let renderer
-try { renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' }) } catch (e) { document.getElementById('noGl').classList.add('is-on'); throw e }
+try { renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' }) } catch (e) { only2D('renderer'); throw e }
 const gfxErr = document.getElementById('gfxError')
 canvas.addEventListener('webglcontextlost', (e) => { e.preventDefault(); gfxErr.classList.add('is-on') })
 canvas.addEventListener('webglcontextrestored', () => location.reload())
@@ -198,7 +210,7 @@ const holoMat = new THREE.ShaderMaterial({
   fragmentShader: `uniform float uTime;varying vec3 vN;varying vec3 vV;varying vec3 vW;
     void main(){float fr=pow(1.-abs(dot(normalize(vN),normalize(vV))),2.);
       float scan=.5+.5*sin(vW.y*30.-uTime*3.);float gl=step(.992,sin(vW.y*4.+uTime*1.3)*.5+.5)*.8;
-      vec3 col=mix(vec3(.38,.9,1.),vec3(1.,.25,.6),smoothstep(0.,4.,vW.y));
+      vec3 col=mix(vec3(.62,.76,1.),vec3(1.,.72,.38),smoothstep(0.,4.,vW.y));
       float a=(fr*1.4+.22+scan*.25+gl)*(.9+.1*sin(uTime*45.));
       gl_FragColor=vec4(col*a,a*.85);}`,
 })
@@ -207,7 +219,7 @@ const avatar = new THREE.Group()
   const body = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.66, 1.5, 14), holoMat); body.position.y = 1.1; avatar.add(body)
   const trim = new THREE.Mesh(new THREE.TorusGeometry(0.58, 0.04, 6, 24), glow(PINK, 3)); trim.rotation.x = Math.PI / 2; trim.position.y = 1.2; avatar.add(trim)
   const head = new THREE.Mesh(new THREE.SphereGeometry(0.52, 24, 16), holoMat); head.position.y = 2.25; avatar.add(head)
-  const visor = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.18, 0.3), glow(0x62e6ff, 3.5)); visor.position.set(0, 2.3, 0.36); avatar.add(visor)
+  const visor = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.18, 0.3), glow(0x9db8ff, 3.2)); visor.position.set(0, 2.3, 0.36); avatar.add(visor)
   const armGeo = new THREE.BoxGeometry(0.16, 0.9, 0.16)
   const mk = (s) => { const p = new THREE.Group(); const m = new THREE.Mesh(armGeo, holoMat); m.position.y = -0.4; p.add(m); p.position.set(s * 0.72, 1.7, 0); avatar.add(p); return p }
   avatar.armL = mk(-1); avatar.armR = mk(1)
@@ -216,7 +228,7 @@ const avatar = new THREE.Group()
   const tag = sprite('Iman', { size: 0.9, font: `italic 400 130px ${F_SERIF}` }); tag.position.y = 3.4; avatar.add(tag); avatar.tag = tag
   avatar.scale.setScalar(2.4); avatar.position.set(0, 0, 0)
   scene.add(avatar) // hologram: intentionally not solid
-  const stream = gpuPoints({ N: isMobile ? 60 : 130, radius: 1.3, height: 5.5, color: 0x62e6ff, size: 0.16, speed: 0.9, opacity: 0.95, seed: 4, cylinder: true }); stream.scale.setScalar(2.4)
+  const stream = gpuPoints({ N: isMobile ? 60 : 130, radius: 1.3, height: 5.5, color: 0xbcd0ff, size: 0.16, speed: 0.9, opacity: 0.95, seed: 4, cylinder: true }); stream.scale.setScalar(2.4)
 }
 let avatarNear = 0
 tickers.push((t, dt) => {
@@ -226,9 +238,6 @@ tickers.push((t, dt) => {
   avatar.armL.rotation.z = 0.15 + Math.sin(t * 1.3) * 0.05
   avatar.halo.rotation.z = t * 0.8
 })
-
-const stations = createStations({ scene, addStatic, tickers, camObs, isMobile })
-const boards = stations.boards
 
 /* ------------------------------------------------------------------ props you can smash (real Kenney models) + collectible orbs */
 const dummy = new THREE.Object3D()
@@ -276,7 +285,6 @@ function spawnProps(city, kits) {
   spots.forEach(([x, z], i) => orbs.push({ x, z, y: 1.3, alive: true, name: ORB_NAMES[i % ORB_NAMES.length], phase: rnd() * 6 }))
   // a few sit in mid-air along the stunt jumps: only reachable by flying
   for (const [x, y, z] of [[-144, 4.6, -7], [-144, 4.9, 5], [-96, 9.4, -5], [-96, 10.4, 8], [-120, 4.8, -24], [-72, 7.2, -24]]) orbs.push({ x, z, y, alive: true, name: 'Big air', phase: rnd() * 6 })
-  $('#orbTotal').textContent = orbs.length
 }
 
 /* ------------------------------------------------------------------ input */
@@ -286,23 +294,29 @@ const buzz = (ms) => { if (navigator.userActivation?.hasBeenActive) navigator.vi
 const keys = {}
 const stick = { on: false, x: 0, y: 0, id: null }
 let boostBtn = false, driftBtn = false
+const overlayOpen = () => !!(chapter?.isOpen || menu?.isOpen || garage?.isOpen || p2d.isOpen)
 addEventListener('keydown', (e) => {
   if (e.metaKey || e.ctrlKey || e.altKey) return
   const tg = e.target?.tagName
+  if (e.code === 'Tab' && started && !chapter?.isOpen && !p2d.isOpen && !garage?.isOpen) { e.preventDefault(); menu?.toggle(); return }
   if ((tg === 'BUTTON' || tg === 'A') && (e.code === 'Space' || e.code === 'Enter')) return
+  if (e.code === 'Escape') { escapeKey(); return }
+  if (p2d.isOpen) return
   keys[e.code] = true
   if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault()
   if (!started) { if (e.code === 'Enter' || e.code === 'Space') startGame(); return }
+  if (overlayOpen()) return
+  if (introCtl) introCtl.skip()
   if (e.code === 'KeyE' || e.code === 'Enter') interact()
   if (e.code === 'KeyT') { tour.on ? cancelTour() : startTour() }
   if (e.code === 'KeyR') { trial.on ? stopTrial('Trial cancelled') : startTrial() }
   if (e.code === 'KeyP') takePhoto()
   if (e.code === 'KeyN') cycleTime()
-  if (e.code === 'KeyG') toggleHub()
-  if (e.code === 'KeyC') garage?.toggle()
-  if (e.code === 'Escape') closeMenus()
   if (e.code === 'KeyB') cycleWeather()
-  const n = +e.code.replace('Digit', ''); if (n >= 1 && n <= NAV.length) warp(NAV[n - 1].id)
+  if (e.code === 'KeyG') menu?.open('play')
+  if (e.code === 'KeyM' || e.code === 'KeyJ') menu?.open('explore')
+  if (e.code === 'KeyC') garage?.toggle()
+  const n = +e.code.replace('Digit', ''); if (n >= 1 && n <= JOURNEY.length) goStep(n - 1)
 })
 addEventListener('keyup', (e) => { keys[e.code] = false })
 addEventListener('blur', () => { for (const k in keys) keys[k] = false })
@@ -319,94 +333,110 @@ addEventListener('blur', () => { for (const k in keys) keys[k] = false })
   hold('#boostBtn', (v) => (boostBtn = v)); hold('#driftBtn', (v) => (driftBtn = v))
   $('#actBtn').addEventListener('pointerdown', (e) => { e.preventDefault(); interact() })
 }
-document.addEventListener('gesturestart', (e) => e.preventDefault())
-
-/* ------------------------------------------------------------------ zones + UI */
-const NAV = ZONES.filter((z) => z.nav).map((z) => ({ id: z.id, label: z.nav }))
-const navEl = $('#nav')
-navEl.innerHTML = NAV.map((n, i) => `<button data-nav="${n.id}"><b>${i + 1}</b>${n.label}</button>`).join('') + '<button data-tour class="tour">▶ Tour</button><button data-hub class="tour">◈ Play</button><button data-nav="contact" class="hire">Hire me</button>'
-const seen = new Set(); let allSeen = false
-const navKey = (z) => (z.kind === 'project' ? 'work' : z.kind === 'job' ? 'gsi' : z.id)
-document.addEventListener('click', (e) => { const hb = e.target.closest('[data-hub]'); if (hb) { e.preventDefault(); toggleHub(); return } const run = e.target.closest('[data-run],a[data-act]'); if (run) { e.preventDefault(); runAct(run.dataset.run || run.dataset.act); return } const tr = e.target.closest('[data-trial]'); if (tr) { e.preventDefault(); trial.on ? stopTrial('Trial cancelled') : startTrial(); return } const t = e.target.closest('[data-tour]'); if (t) { e.preventDefault(); tour.on ? cancelTour() : startTour(); return } const b = e.target.closest('[data-nav]'); if (!b) return; e.preventDefault(); warp(b.dataset.nav) })
-const actBtn = $('#actBtn'), panel = $('#panel'), toastEl = $('#toast'), locEl = $('#loc'), hintEl = $('#hint')
-let active = null, dlg = { i: 0, timer: 0, auto: 0, done: false, seen: false }
-
-function decorate() {
-  panel.classList.remove('is-min')
-  if (isMobile && !panel.querySelector('.min')) panel.insertAdjacentHTML('afterbegin', '<button class="min" aria-label="Collapse panel">–</button>')
+{ // look around: drag the world with the mouse, or drag on the right half of a touch screen
+  const begin = (e) => { if (!started || overlayOpen() || (e.pointerType === 'mouse' && e.button !== 0)) return; look.drag = true; look.idle = 0; look.x = e.clientX; look.y = e.clientY; look.id = e.pointerId; canvas.classList.add('is-drag'); try { e.target.setPointerCapture(e.pointerId) } catch (_) { /* synthetic pointer */ } }
+  const move = (e) => { if (!look.drag || e.pointerId !== look.id) return; look.yaw = clamp(look.yaw - (e.clientX - look.x) * 0.006, -2.6, 2.6); look.pitch = clamp(look.pitch + (e.clientY - look.y) * 0.004, -0.5, 1); look.x = e.clientX; look.y = e.clientY; look.idle = 0 }
+  const end = (e) => { if (e.pointerId !== look.id) return; look.drag = false; look.idle = 0; look.id = null; canvas.classList.remove('is-drag') }
+  for (const el of [canvas, $('#lookZone')]) { el.addEventListener('pointerdown', begin); el.addEventListener('pointermove', move); el.addEventListener('pointerup', end); el.addEventListener('pointercancel', end) }
 }
-panel.addEventListener('click', (e) => { const ev = e.target.closest('[data-ev]'); if (ev) track('link_click', { kind: ev.dataset.ev }); const pv = e.target.closest('a.btn[href^="http"]'); if (pv && active?.url) track('project_open', { project: active.id }); if (e.target.closest('.min')) { panel.classList.toggle('is-min'); e.target.closest('.min').textContent = panel.classList.contains('is-min') ? '+' : '–' } })
+document.addEventListener('gesturestart', (e) => e.preventDefault())
+document.addEventListener('click', (e) => {
+  if (e.target.closest('[data-open2d]')) { e.preventDefault(); p2d.show(); return }
+  const run = e.target.closest('a[data-act]'); if (run) { e.preventDefault(); chapter?.close(); runAct(run.dataset.act) }
+})
+
+/* ------------------------------------------------------------------ journey UI: where am I · what next · what is here */
+const journey = createJourney({ locations: LOCATIONS, steps: JOURNEY })
+const hud = createHud({ journey, onStep: (i) => goStep(i) })
+const toastEl = $('#toast'), actBtn = $('#actBtn')
+let active = null // the zone (location or game) the car is inside
+let objective = null, chapter = null, menu = null, guidance = null, mapRenderer = null, landmarks = null, introCtl = null, worldGoal = 1, worldScale = 1, exploredShown = false
+const isLocation = (z) => !!z && z.type !== 'game' && z.type !== 'home'
+const locName = (l) => (l.id === 'contact' ? 'Communication terminal' : l.id === 'about' ? 'Profile' : l.title)
 function toast(t, ms = 1600) { toastEl.textContent = t; toastEl.classList.add('is-on'); clearTimeout(toast.t); toast.t = setTimeout(() => toastEl.classList.remove('is-on'), ms) }
 
-function typeLine() {
-  clearInterval(dlg.timer); clearTimeout(dlg.auto)
-  const line = DIALOGUE[dlg.i], last = dlg.i === DIALOGUE.length - 1
-  panel.innerHTML = `<div class="who"><i></i><b>Iman</b><span class="mono dim">${dlg.i + 1}/${DIALOGUE.length}</span></div><p class="typed"></p><div class="next mono">${last ? 'Drive on — the world is yours →' : '<kbd>E</kbd> / tap — next'}</div>`
-  const el = panel.querySelector('.typed'); let n = 0; dlg.done = false
-  dlg.timer = setInterval(() => {
-    n += 1; el.textContent = line.slice(0, n)
-    if (n >= line.length) { clearInterval(dlg.timer); dlg.done = true; el.classList.add('done'); if (!last) dlg.auto = setTimeout(nextLine, 3200 + line.length * 18); else dlg.seen = true }
-  }, 22)
-  panel.querySelector('.next').addEventListener('click', nextLine); decorate()
-}
-function nextLine() {
-  if (active?.id !== 'home') return
-  if (!dlg.done) { clearInterval(dlg.timer); const el = panel.querySelector('.typed'); el.textContent = DIALOGUE[dlg.i]; el.classList.add('done'); dlg.done = true; return }
-  if (dlg.i < DIALOGUE.length - 1) { dlg.i++; typeLine() }
+function discovered(loc) {
+  hud.discover(loc); audio.discover(); hud.paintJourney(); track('location_discovered', { id: loc.id, n: journey.count })
+  if (journey.explored && !exploredShown) { exploredShown = true; setTimeout(() => toast('World explored — want to build something together?', 5200), 4300); track('world_explored') }
 }
 function enterZone(z) {
   active = z
-  clearInterval(dlg.timer); clearTimeout(dlg.auto)
-  navEl.querySelectorAll('button').forEach((b) => b.classList.toggle('is-on', !!z && (b.dataset.nav === z.id || (b.dataset.nav === 'home' && z.id === 'home') || (b.dataset.nav === 'work' && z.kind === 'project') || (b.dataset.nav === 'gsi' && z.kind === 'job'))))
-  actBtn.classList.toggle('is-on', !!z && (z.id === 'home' || !!z.url || z.kind === 'game')); actBtn.textContent = z?.url ? 'Visit ↗' : z?.kind === 'game' ? 'Go' : 'Next'
-  if (!z) { panel.classList.remove('is-on'); locEl.innerHTML = ''; return }
-  locEl.innerHTML = `Now at <b>${z.name}</b>`; audio.blip(); $('#srLive').textContent = `Now at ${z.name}`
+  if (!z) return
+  audio.blip()
   if (trial.on && trial.cd <= 0 && z.id === TRIAL[trial.i]) hitCheckpoint()
-  if (!seen.has(navKey(z))) track('zone_first_visit', { zone: navKey(z) }); seen.add(navKey(z)); navEl.querySelectorAll('[data-nav]').forEach((b) => b.classList.toggle('seen', seen.has(b.dataset.nav)))
-  if (!allSeen && NAV.every((n) => seen.has(n.id))) { allSeen = true; setTimeout(() => toast('You’ve seen everything — let’s talk →', 4500), 1800) }
-  hintEl.classList.add('is-off')
-  if (z.id === 'home') { if (!dlg.seen) { dlg.i = 0; panel.classList.add('is-on'); typeLine() } else { panel.innerHTML = `<div class="who"><i></i><b>Iman</b></div><p class="typed done">Welcome back! Head west for About, east for Skills, north for Work, south for my path.</p>`; panel.classList.add('is-on') } }
-  else if (z.html) { panel.innerHTML = z.html; panel.classList.add('is-on') }
-  decorate()
+  if (isLocation(z)) {
+    journey.arrive(z.id)
+    if (journey.discover(z.id)) discovered(z)
+    if (tour.on && !chapter.isOpen) openChapter(z, { auto: true })
+  }
 }
 function interact() {
-  if (!active) return
-  if (active.kind === 'game') return runAct(active.act)
-  if (active.id === 'home') return nextLine()
-  if (active.url) { track('project_open', { project: active.id, via: 'key' }); window.open(active.url, '_blank', 'noopener') }
+  if (overlayOpen() || !active) return
+  if (active.type === 'game') return runAct(active.act)
+  if (isLocation(active)) openChapter(active)
 }
-function warp(id, keepTour = false) {
-  const z = ZONES.find((k) => k.id === id); if (!z || !started) return
-  if (!keepTour) { cancelTour(); stopTrial() }
+/** Open a location as a focused chapter. `remote` = opened from the menu / a button rather than by driving there. */
+let chapterAuto = false, chapterRemote = false
+function openChapter(loc, { remote = false, auto = false } = {}) {
+  if (!loc || !started || chapter.isOpen) return
+  if (!auto) { cancelTour(); stopTrial(); modes?.cancel() }
+  chapterAuto = auto; chapterRemote = remote
+  if (journey.discover(loc.id)) discovered(loc)
+  journey.arrive(loc.id)
+  const step = journey.stepOf(loc.id), group = step >= 0 ? JOURNEY[step].ids : [loc.id]
+  const nxt = journey.objective(car.pos.x, car.pos.z)
+  if (remote) { camSnap = true; flashScreen() }
+  chapter.show(loc, { index: group.indexOf(loc.id), count: group.length, next: nxt && nxt.id !== loc.id ? nxt : null })
+  audio.enter(); track('chapter_open', { id: loc.id, via: remote ? 'menu' : auto ? 'tour' : 'drive' })
+}
+function flashScreen() { const f = $('#flash'); f.classList.remove('is-on'); void f.offsetWidth; f.classList.add('is-on') }
+function travelTo(loc) {
+  const z = ZONES.find((k) => k.id === (loc.id || loc)); if (!z || !started) return
+  cancelTour(); stopTrial(); modes?.cancel()
   const [sx, sz] = z.spawn || z.pos, [tx, tz] = z.pos
-  car.pos.set(sx, 0, sz); car.vel.set(0, 0); car.y = car.viewY = city.BASE; car.air = false; car.vy = car.vyG = car.spinP = car.spinR = 0
-  car.ang = Math.atan2(-(tx - sx), -(tz - sz))
-  camSnap = true
-  const f = $('#flash'); f.classList.remove('is-on'); void f.offsetWidth; f.classList.add('is-on')
+  placeCar(sx, sz, Math.atan2(-(tx - sx), -(tz - sz)))
 }
+const warp = (id, keepTour = false) => { if (!keepTour) { cancelTour(); stopTrial() } travelTo({ id }) }
+/** Mark a destination: beam + road ribbon + minimap line + compass arrow. */
+function goTo(loc) {
+  if (!loc) return
+  journey.setManual(loc.id); refreshObjective(); guidance.pulse(); hud.pulseObjective(); audio.blip()
+  toast(`${loc.goal} — follow the marker`, 2400); track('navigate', { id: loc.id })
+}
+function goStep(i) {
+  const st = JOURNEY[i]; if (!st) return
+  const id = st.ids.find((k) => !journey.has(k)) || st.ids[0]
+  if (journey.stepStates()[i].complete && st.ids.length > 1) { menu?.open('explore'); return }
+  goTo(byId(id))
+}
+function refreshObjective() {
+  const o = journey.objective(car.pos.x, car.pos.z)
+  if (o?.id !== objective?.id) { objective = o; guidance.setTarget(o); hud.paintJourney() }
+  hud.setObjective(objective, objective ? Math.hypot(objective.pos[0] - car.pos.x, objective.pos[1] - car.pos.z) : null)
+}
+function updatePlaceAndPrompt() {
+  const d = districtAt(car.pos.x, car.pos.z)
+  hud.setWhere(d ? d.name : CITY_NAME, isLocation(active) ? locName(active) : '')
+  const show = active && active.type !== 'home' && !overlayOpen() && !modes?.active && !tour.on
+  hud.prompt(show ? active.enter : '', show ? (isLocation(active) ? active.subtitle : active.subtitle) : '')
+  actBtn.classList.toggle('is-on', !!show); actBtn.textContent = active?.type === 'game' ? 'Go' : 'Enter'
+}
+function escapeKey() {
+  if (chapter?.isOpen) { if (tour.on) cancelTour(); chapter.close(); return }
+  if (garage?.isOpen) { garage.close(); return }
+  if (menu?.isOpen) { menu.close(); return }
+  if (p2d.isOpen && gpuProbe.ok && !hard2D) { p2d.hide(); return }
+  if (tour.on) cancelTour('Tour ended')
+}
+function resetProgress() { journey.reset(); exploredShown = false; objective = null; hud.paintJourney(); refreshObjective(); toast('Progress reset', 1600); menu?.refresh() }
 
-/* minimap: static city layer is painted once, markers on top */
+/* minimap (HUD) — the same architectural renderer as the big map in the menu */
 const mini = $('#mini'), mctx = mini.getContext('2d')
-const MAP_K = 0.83
-let mapCanvas = null
-function buildMinimap(city) {
-  const c = document.createElement('canvas'); c.width = c.height = 300; const x = c.getContext('2d'); x.translate(150, 150)
-  const col = { D: '#39406e', C: '#2c3254', T: '#3f2f66', S: '#28483a', P: '#20402c', H: '#4a3a2a', X: '#5e2a48', Z: '#284040', A: '#642a52', K: '#3a2f74', Q: '#642a52', W: '#283a5a', R: '#4a4a2a' }
-  for (const b of city.blocks) { x.fillStyle = col[b.type] || '#2a2f4a'; x.fillRect((b.x - 18) * MAP_K, (b.z - 18) * MAP_K, 36 * MAP_K, 36 * MAP_K) }
-  x.strokeStyle = 'rgba(255,255,255,.5)'; x.lineWidth = 3
-  for (let a = 0; a < 9; a++) { const p = tileX(a * 4) * MAP_K; x.beginPath(); x.moveTo(p, -HALF * MAP_K); x.lineTo(p, HALF * MAP_K); x.stroke(); x.beginPath(); x.moveTo(-HALF * MAP_K, p); x.lineTo(HALF * MAP_K, p); x.stroke() }
-  mapCanvas = c
-}
+function mapState() { return { car: { x: car.pos.x, z: car.pos.z, ang: car.ang }, has: journey.has, objectiveId: objective?.id, path: guidance?.path, t: performance.now() / 1000, carXZ: [car.pos.x, car.pos.z] } }
 function drawMini() {
-  const S = 300, c = S / 2, k = MAP_K
-  mctx.clearRect(0, 0, S, S)
-  if (mapCanvas) mctx.drawImage(mapCanvas, 0, 0)
-  for (const z of ZONES) { if (z.silent || z.kind === 'project') continue; mctx.fillStyle = z.id === active?.id ? '#fff' : z.kind === 'job' ? '#7a5cff' : z.kind === 'game' ? '#7ee0ff' : '#ff2d8a'; mctx.beginPath(); mctx.arc(c + z.pos[0] * k, c + z.pos[1] * k, z.id === 'stunt' ? 4 : 5.5, 0, 7); mctx.fill() }
-  mctx.fillStyle = 'rgba(255,45,138,.85)'; for (const p of projZones) mctx.fillRect(c + p.pos[0] * k - 3, c + p.pos[1] * k - 3, 6, 6)
-  mctx.fillStyle = '#a892ff'; for (const o of orbs) if (o.alive) { mctx.beginPath(); mctx.arc(c + o.x * k, c + o.z * k, 2.6, 0, 7); mctx.fill() }
-  modes?.overlay(mctx, c, k)
-  mctx.save(); mctx.translate(c + car.pos.x * k, c + car.pos.z * k); mctx.rotate(-car.ang); mctx.fillStyle = '#fff'; mctx.strokeStyle = '#000'; mctx.lineWidth = 2; mctx.beginPath(); mctx.moveTo(0, -10); mctx.lineTo(7, 8); mctx.lineTo(-7, 8); mctx.closePath(); mctx.fill(); mctx.stroke(); mctx.restore()
-  mctx.strokeStyle = 'rgba(255,45,138,.5)'; mctx.lineWidth = 3; mctx.beginPath(); mctx.arc(c, c, c - 2, 0, 7); mctx.stroke()
+  if (!mapRenderer) return
+  mapRenderer.draw(mctx, mini.width, { ...mapState(), labels: false, games: false })
+  modes?.overlay(mctx, mini.width / 2, mapRenderer.scale(mini.width))
 }
 
 /* ------------------------------------------------------------------ physics */
@@ -440,9 +470,9 @@ function collideCircle(x, z, r, out, y = 0) {
 const hitOut = { x: 0, z: 0, nx: 0, nz: 0 }
 let shake = 0
 let TOUR = [] // built from the road network once the city exists
-const tour = { on: false, i: 0, wait: 0, stuck: 0 }
+const tour = { on: false, i: 0, wait: 0, stuck: 0, rev: 0, lastI: -1, bestD: 1e9, noProg: 0 }
 /* time trial: "speedrun the CV" — hit five checkpoints in order, fastest time is stored locally */
-const TRIAL = ['about', 'skills', 'rizo', 'dew', 'contact']
+const TRIAL = ['about', 'lab', 'rizo', 'dew', 'contact']
 let best = 0; try { best = +localStorage.getItem('im-best') || 0 } catch (_) { /* private mode */ }
 const trial = { on: false, i: 0, t: 0, cd: 0, step: 0 }
 const beacon = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 2.6, 70, 20, 1, true), new THREE.MeshBasicMaterial({ color: 0x7ee0ff, transparent: true, opacity: 0.24, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, toneMapped: false }))
@@ -475,11 +505,11 @@ function updateTrial(dt) {
   if (frame % 3 === 0) { const z = zoneById(TRIAL[trial.i]), d = Math.round(Math.hypot(car.pos.x - z.pos[0], car.pos.z - z.pos[1])); tourChip.innerHTML = trial.cd > 0 ? '<b>Time trial</b> get ready…' : `<b>${trial.t.toFixed(1)}s</b> → ${z.name} · ${d}m <span>${best ? '· best ' + best.toFixed(1) + 's' : ''}</span>` }
 }
 const tourChip = $('#tourChip')
-const paintTour = () => { tourChip.innerHTML = `<b>Auto tour</b> ${Math.min(tour.i + 1, TOUR.length)}/${TOUR.length} <span>— ${coarse ? 'touch' : 'press any key'} to take the wheel</span>` }
+const paintTour = () => { tourChip.innerHTML = `<b>Guided tour</b> ${Math.min(tour.i + 1, TOUR.length)}/${TOUR.length} <span>— ${coarse ? 'touch' : 'press any key'} to take the wheel</span>` }
 function startTour() {
   if (!ready) return
   if (!started) startGame()
-  modes?.cancel(); warp('home', true); tour.on = true; tour.i = 0; tour.wait = 0; tour.stuck = 0
+  modes?.cancel(); warp('home', true); tour.on = true; tour.i = 0; tour.rev = 0; tour.lastI = -1; tour.wait = 0; tour.stuck = 0
   tourChip.classList.add('is-on'); paintTour(); track('tour_start')
 }
 function cancelTour(msg) { if (!tour.on) return; tour.on = false; tourChip.classList.remove('is-on'); if (msg) toast(msg, 3200) }
@@ -507,9 +537,14 @@ function pollPad() {
 function autopilot(dt) {
   const w = TOUR[tour.i]
   if (!w) { track('tour_complete'); cancelTour('That was the tour — take the wheel and explore ✦'); return IDLE }
-  if (tour.wait > 0) { tour.wait -= dt; if (tour.wait <= 0) { tour.i++; paintTour() } return { f: car.speed > 1.5 ? -0.6 : 0, t: 0, boost: false, drift: false } }
+  if (tour.wait > 0) { tour.wait -= dt; if (tour.wait <= 0) { tour.i++; paintTour(); if (chapter?.isOpen && chapterAuto) chapter.close() } return { f: car.speed > 1.5 ? -0.6 : 0, t: 0, boost: false, drift: false } }
+  if (tour.rev > 0) { tour.rev -= dt; return { f: -1, t: 0, boost: false, drift: false } } // back away from whatever pinned us
   const dx = w.p[0] - car.pos.x, dz = w.p[1] - car.pos.z, d = Math.hypot(dx, dz)
   let err = Math.atan2(-dx, -dz) - car.ang; err = Math.atan2(Math.sin(err), Math.cos(err))
+  // watchdog: no real progress towards this waypoint for 4 s → reverse out and move on
+  if (tour.lastI !== tour.i) { tour.lastI = tour.i; tour.bestD = 1e9; tour.noProg = 0 }
+  if (d < tour.bestD - 0.4) { tour.bestD = d; tour.noProg = 0 } else if (tour.wait <= 0) tour.noProg += dt
+  if (tour.noProg > 4) { tour.noProg = 0; tour.rev = 1.1; tour.i++; paintTour(); return IDLE }
   if (d < (w.dwell ? 4 : 6.5)) { if (w.dwell) tour.wait = w.dwell; else { tour.i++; paintTour() } tour.stuck = 0; return IDLE }
   tour.stuck = Math.abs(car.speed) < 0.6 ? tour.stuck + dt : 0
   if (tour.stuck > 3) { tour.i++; tour.stuck = 0; paintTour() }
@@ -523,7 +558,7 @@ function autopilot(dt) {
   return { f: car.speed < vmax ? 1 : car.speed > vmax + 3 ? -0.5 : 0.15, t: clamp(-err * 2.4, -1, 1), boost: d > 70 && align > 0.97 && corner > 0.9 && car.energy > 0.6, drift: false }
 }
 function getInput(dt) {
-  if (menuOpen() || modes?.locked) return IDLE
+  if ((overlayOpen() && !tour.on) || modes?.locked) return IDLE
   if (trial.on && trial.cd > 0) return IDLE
   if (tour.on) { if (userActive()) cancelTour(); else return autopilot(dt) }
   let f = (keys.KeyW || keys.ArrowUp ? 1 : 0) - (keys.KeyS || keys.ArrowDown ? 1 : 0)
@@ -698,7 +733,6 @@ function updateOrbs(dt, t) {
     if (d < 7) { const k = (1 - d / 7) * 14 * dt; o.x += dx * k / Math.max(d, 0.5); o.z += dz * k / Math.max(d, 0.5) }
     if (d < 1.9 && Math.abs(car.y + 0.9 - o.y) < 3.2) {
       o.alive = false; orbInfo.got++
-      $('#orbCount').textContent = orbInfo.got
       sparks.burst(o.x, 1.2, o.z, 0xa892ff, 18, 7); audio.chime(orbInfo.got); buzz(12)
       if (orbInfo.got === orbs.length) unlockSecret()
       else toast(`+ ${o.name}  ·  ${orbInfo.got}/${orbs.length}`, 1300)
@@ -752,6 +786,10 @@ function avoidObstacles() {
 }
 const camLook = new THREE.Vector3(), camDes = new THREE.Vector3(), tgt = new THREE.Vector3()
 let camSnap = true, menuAng = 0.6
+const look = { yaw: 0, pitch: 0, drag: false, idle: 0, x: 0, y: 0, id: null } // drag to look around; eases back when let go
+const aerial = new THREE.Vector3(), aerialLook = new THREE.Vector3(0, 3, 6)
+/** Default hero shot for a location without a hand-placed view: arrive from the road side, a little above. */
+function defaultView(loc) { const [x, z] = loc.pos, [sx, sz] = loc.spawn || [x, z + 20], dx = sx - x, dz = sz - z, L = Math.hypot(dx, dz) || 1; return { from: [x + (dx / L) * 30, 9, z + (dz / L) * 30], at: [x, 5, z] } }
 function updateCamera(dt, t) {
   if (import.meta.env.DEV && window.__cam) { camera.position.set(...window.__cam.p); camera.lookAt(...window.__cam.l); return }
   const fx = -Math.sin(car.ang), fz = -Math.cos(car.ang), sn = clamp(Math.abs(car.speed) / 30, 0, 1)
@@ -761,6 +799,17 @@ function updateCamera(dt, t) {
     camera.position.lerp(camDes, damp(dt, 2)); tgt.set(0, 4, -4)
     camLook.lerp(tgt, damp(dt, 3)); camera.lookAt(camLook); return
   }
+  if (chapter?.isOpen && chapter.current) { // a chapter: glide to the location's hero shot, subject to the left of the card
+    const v = chapter.current.view || defaultView(chapter.current), [fx0, fy0, fz0] = v.from, [ax, ay, az] = v.at
+    const fdx = ax - fx0, fdz = az - fz0, L = Math.hypot(fdx, fdz) || 1, portrait = camera.aspect < 0.85, drift = reduceMotion ? 0 : Math.sin(t * 0.18) * 0.14
+    const cs = Math.cos(drift), sn2 = Math.sin(drift), ox = fx0 - ax, oz = fz0 - az
+    camDes.set(ax + ox * cs - oz * sn2, fy0, az + ox * sn2 + oz * cs)
+    tgt.set(ax + (portrait ? 0 : (-fdz / L) * L * 0.3), ay - (portrait ? L * 0.17 : 0), az + (portrait ? 0 : (fdx / L) * L * 0.3))
+    if (camSnap) { camera.position.copy(camDes); camLook.copy(tgt); camSnap = false }
+    camera.position.lerp(camDes, damp(dt, 1.7)); camLook.lerp(tgt, damp(dt, 2.6)); camera.lookAt(camLook)
+    if (Math.abs(camera.fov - 48) > 0.05) { camera.fov = lerp(camera.fov, 48, damp(dt, 3)); camera.updateProjectionMatrix() }
+    return
+  }
   if (garage?.isOpen) { // showroom: slow orbit around the parked car
     menuAng += dt * 0.4
     camDes.set(car.pos.x + Math.sin(menuAng) * 8.5, car.y + 3, car.pos.z + Math.cos(menuAng) * 8.5)
@@ -768,9 +817,17 @@ function updateCamera(dt, t) {
   }
   const port = clamp(1.15 - camera.aspect, 0, 0.7)
   const dist = 11 + sn * 3.5 + port * 7, h = 5.4 + sn * 1.5 + port * 3.5
-  camDes.set(car.pos.x - fx * dist, h + car.viewY, car.pos.z - fz * dist)
+  if (!look.drag) { look.idle += dt; if (look.idle > 1.6) { const k = Math.exp(-1.3 * dt); look.yaw *= k; look.pitch *= k } }
+  const cy = car.ang + look.yaw, cfx = -Math.sin(cy), cfz = -Math.cos(cy)
+  camDes.set(car.pos.x - cfx * dist, h + car.viewY + look.pitch * 6, car.pos.z - cfz * dist)
   occlude(camDes)
   tgt.set(car.pos.x + fx * 5, 1.5 + car.viewY * 0.9, car.pos.z + fz * 5)
+  if (introT < 1) { // arrival: a slow glide down from above the city
+    introT = Math.min(1, introT + dt / 4.8); const e = 1 - Math.pow(1 - introT, 3)
+    aerial.set(car.pos.x + 44, 92, car.pos.z + 70); camera.position.lerpVectors(aerial, camDes, e); camLook.lerpVectors(aerialLook, tgt, e); camera.lookAt(camLook)
+    const f = 44 + (58 - 44) * e; if (Math.abs(camera.fov - f) > 0.05) { camera.fov = f; camera.updateProjectionMatrix() }
+    return
+  }
   if (camSnap) { camera.position.copy(camDes); camLook.copy(tgt); camSnap = false }
   camera.position.lerp(camDes, damp(dt, 3.4)); camLook.lerp(tgt, damp(dt, 7))
   avoidObstacles()
@@ -785,7 +842,6 @@ function updateCamera(dt, t) {
 let started = false, ready = false
 const clock = { last: performance.now(), elapsedTime: 0, getDelta() { const n = performance.now(), d = (n - this.last) / 1000; this.last = n; this.elapsedTime += d; return d } }
 let fpsAcc = 0, fpsN = 0, fpsShow = 0, frame = 0, startFrame = 0
-const fpsEl = $('#fps')
 const drs = { level: 0, levels: [1, 0.85, 0.72, 0.6], avg: 1 / 60, below: 0, above: 0, lock: 0, settle: 0, minDt: 1 }
 function setRes(l) {
   drs.level = l; pixelRatio = Math.max(0.75, BASE_RATIO * drs.levels[l]); pxU.value = pixelRatio
@@ -808,34 +864,45 @@ function updateDRS(dt) {
   else if (drs.above > 6 && drs.level > 0 && drs.lock <= 0) { setRes(drs.level - 1); drs.above = 0; drs.lock = 25 }
 }
 const spdEl = $('#spd'), enEl = $('#energy'), boostEl = $('#boostBtn')
+const carView = { x: 0, z: 0, y: 0, vx: 0, vz: 0 }
+let lastOverlay = false
 function tick() {
-  const dt = Math.min(clock.getDelta(), 0.05), t = clock.elapsedTime
+  const dtReal = Math.min(clock.getDelta(), 0.05), t = clock.elapsedTime
   frame++
-  fpsAcc += dt; fpsN++
-  if (fpsAcc > 0.5) { fpsShow = fpsN / fpsAcc; fpsEl.textContent = Math.round(fpsShow) + ' fps'; fpsAcc = 0; fpsN = 0 }
-  renderer.info.reset(); pollPad(); updateDRS(dt)
+  fpsAcc += dtReal; fpsN++
+  if (fpsAcc > 0.5) { fpsShow = fpsN / fpsAcc; fpsAcc = 0; fpsN = 0 }
+  renderer.info.reset(); pollPad(); updateDRS(dtReal)
+  // while a chapter is open the world eases into slow motion (ambience keeps moving, the car glides to a stop)
+  worldGoal = chapter?.isOpen || menu?.isOpen || garage?.isOpen ? 0.14 : 1
+  { const ov = overlayOpen(); if (ov !== lastOverlay) { lastOverlay = ov; document.body.classList.toggle('overlay', ov) } }
+  worldScale += (worldGoal - worldScale) * damp(dtReal, 3.2)
+  const dt = dtReal * (reduceMotion ? (worldGoal < 1 ? 0.4 : 1) : worldScale)
   gpuTime.value = t; uniforms.uTime.value = t; atmo?.update(dt, t); sky.update(camera, t); motes.position.set(car.pos.x, 0, car.pos.z)
-  if (frame % 30 === 0) paintClock()
   updateCar(dt, t)
   updatePushables(dt); updateOrbs(dt, t)
   traffic?.update(dt, car, atmo ? atmo.state.night : 1, trafficFx); debris?.update(dt)
   for (const f of tickers) f(t, dt)
   sparks.update(dt)
 
-  // zones
+  // which location / game is the car inside?
   let best = null, bd = 1e9
   if (started) for (const z of ZONES) { if (z.silent) continue; const d = Math.hypot(car.pos.x - z.pos[0], car.pos.z - z.pos[1]); if (d < z.r && d / z.r < bd) { bd = d / z.r; best = z } }
   if (started) {
-    if (modes?.active) { if (active) enterZone(null) } // a race / delivery is running: no zone panels
-    else if (zoneMute > 0) zoneMute -= dt
+    if (modes?.active) { if (active) enterZone(null) } // a race / delivery is running: no prompts
     else if (best?.id !== active?.id) enterZone(best)
   }
   avatarNear = lerp(avatarNear, active?.id === 'home' ? 1 : 0, damp(dt, 4))
-  for (const b of boards) { const on = active?.id === b.id; if (on) { if (t - b.live.last > (isMobile ? 1 / 12 : 1 / 24)) { b.live.render(t); b.live.last = t } b.wasOn = true } else if (b.wasOn) { b.live.render(0); b.wasOn = false } b.g.scale.setScalar(lerp(b.g.scale.x, on ? 1.08 : 1, damp(dt, 5))); b.frame.material.emissiveIntensity = lerp(b.frame.material.emissiveIntensity, on ? 4.5 : 1.6, damp(dt, 5)) }
+  carView.x = car.pos.x; carView.z = car.pos.z; carView.y = car.y; carView.vx = car.vel.x; carView.vz = car.vel.y
+  landmarks?.update(t, dt, carView, active?.id)
+  guidance?.update(dtReal, t, { x: car.pos.x, z: car.pos.z }, chapter?.isOpen)
 
   updateTrial(dt); modes?.update(dt, t)
-  if (frame % 2 === 0) updateArrow()
-  updateCamera(dt, t)
+  if (started) {
+    if (frame % 6 === 0) { refreshObjective(); updatePlaceAndPrompt() }
+    if (frame % 2 === 0) updateArrow()
+    if (hintUntil) { if (Math.abs(car.speed) > 3) drivenT += dtReal; if (drivenT > 4 || performance.now() > hintUntil) { hintUntil = 0; hud.hint(null, false) } }
+  }
+  updateCamera(dtReal, t)
   const fu = fx.uniforms; fu.uTime.value = t % 100; fu.uSpeed.value = clamp(Math.abs(car.speed) / 30, 0, 1); fu.uBoost.value = Math.max(car.boost * 0.9, car.padKick); fu.uHit.value = clamp(shake * 1.6, 0, 1)
   if (frame % 8 === 0 && city) city.cull(camera.position.x, camera.position.z)
   if (frame % 2 === 0 && started) drawMini()
@@ -849,44 +916,37 @@ function onResize() {
 }
 addEventListener('resize', onResize)
 
-/* ------------------------------------------------------------------ games: modes, play hub, garage */
-let modes = null, garage = null, zoneMute = 0
-const hubEl = $('#hub'), hubList = $('#hubList'), arrowEl = $('#navArrow'), arrowSvg = arrowEl.querySelector('svg'), arrowDist = $('#navDist')
-const menuOpen = () => !!(garage?.isOpen || hubEl.classList.contains('is-on'))
-function closeMenus() { hubEl.classList.remove('is-on'); hubEl.hidden = true; garage?.close() }
+/* ------------------------------------------------------------------ optional games + settings (reached from the menu) */
+let modes = null, garage = null
+const arrowEl = $('#navArrow'), arrowSvg = arrowEl.querySelector('svg'), arrowDist = $('#navDist')
 function placeCar(x, z, ang) {
   car.pos.set(x, 0, z); car.vel.set(0, 0); car.ang = ang; car.y = car.viewY = city.BASE; car.air = false; car.vy = car.vyG = car.spinP = car.spinR = 0; camSnap = true
-  const f = $('#flash'); f.classList.remove('is-on'); void f.offsetWidth; f.classList.add('is-on')
+  flashScreen()
 }
 const fmtT = (s) => `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStart(4, '0')}`
-function paintHub() {
+function plays() {
   const rb = modes?.race.best, db = modes?.del.best
-  const items = [
-    ['race', 'Street Race', `3 laps around the avenues vs 3 rivals${rb ? ' · best ' + fmtT(rb) : ''}`, 'Race'],
-    ['delivery', 'Delivery Rush', `Five parcels against the clock${db ? ' · best $' + db.toLocaleString('en-US') : ''}`, 'Start'],
-    ['stunt', 'Stunt Park', 'Ramps, plateaus and hoops — chain flips, rolls and drifts', 'Go'],
-    ['trial', 'CV Time Trial', `Speedrun the résumé zones${best ? ' · best ' + best.toFixed(1) + 's' : ''}`, 'Start'],
-    ['tour', 'Auto Tour', 'Sit back — the car drives you through my work', 'Play'],
-    ['garage', 'Garage', `Eight cars, each drives differently · you own ${garage ? garage.owned.size : 1}`, 'Open'],
+  return [
+    { id: 'race', title: 'Street Circuit', desc: `3 laps around the avenues against 3 rivals${rb ? ' · best ' + fmtT(rb) : ''}`, btn: 'Race' },
+    { id: 'delivery', title: 'Delivery Rush', desc: `Five parcels against the clock${db ? ' · best $' + db.toLocaleString('en-US') : ''}`, btn: 'Start' },
+    { id: 'stunt', title: 'Stunt Park', desc: 'Ramps, plateaus and hoops — chain flips, rolls and drifts', btn: 'Go' },
+    { id: 'trial', title: 'Portfolio time trial', desc: `Speedrun five locations${best ? ' · best ' + best.toFixed(1) + 's' : ''}`, btn: 'Start' },
+    { id: 'garage', title: 'Garage', desc: `Eight cars, each drives differently · you own ${garage ? garage.owned.size : 1} · $${score ? score.cash.toLocaleString('en-US') : 0}`, btn: 'Open' },
   ]
-  hubList.innerHTML = items.map(([id, name, d, b]) => `<li><b>${name}</b><small>${d}</small><button class="mono" data-run="${id}">${b}</button></li>`).join('')
-  $('#hubCash').textContent = score ? score.cash.toLocaleString('en-US') : '0'
 }
-function openHub() { if (!started) return; garage?.close(); hubEl.hidden = false; hubEl.classList.add('is-on'); paintHub(); track('hub_open') }
-function toggleHub() { hubEl.classList.contains('is-on') ? closeMenus() : openHub() }
 function runAct(act) {
   if (!started || !ready) return
-  if (act === 'garage') { hubEl.classList.remove('is-on'); hubEl.hidden = true; garage?.open(); return }
-  closeMenus()
+  if (act === 'garage') { garage?.open(); return }
   if (act === 'race') modes.startRace()
   else if (act === 'delivery') modes.startDelivery()
   else if (act === 'stunt') { cancelTour(); stopTrial(); modes.cancel(); placeCar(-144, -44, Math.PI); toast('Stunt Park — floor it over the ramp', 2200) }
   else if (act === 'trial') startTrial()
   else if (act === 'tour') startTour()
 }
-/** HUD compass arrow pointing at the active objective (checkpoint / parcel). */
+/** HUD compass arrow: the game objective when a mode is running, otherwise the journey objective when it is far away. */
 function updateArrow() {
-  const tg = started ? modes?.target() : null
+  let tg = started ? modes?.target() : null
+  if (!tg && started && objective && !overlayOpen() && !tour.on && Math.hypot(objective.pos[0] - car.pos.x, objective.pos[1] - car.pos.z) > 30) tg = { x: objective.pos[0], z: objective.pos[1] }
   if (!tg) { arrowEl.classList.remove('is-on'); return }
   const dx = tg.x - car.pos.x, dz = tg.z - car.pos.z
   let err = Math.atan2(-dx, -dz) - car.ang; err = Math.atan2(Math.sin(err), Math.cos(err))
@@ -895,16 +955,9 @@ function updateArrow() {
 
 /* ------------------------------------------------------------------ time of day + weather */
 let atmo = null
-const todBtn = $('#todBtn'), wxBtn = $('#wxBtn')
 const WX_LABEL = { auto: 'Auto', clear: 'Clear', rain: 'Rain', storm: 'Storm' }, TIME_LABEL = { auto: 'Auto', dawn: 'Dawn', day: 'Day', dusk: 'Dusk', night: 'Night' }
-function paintClock() {
-  if (!atmo) return
-  const ph = atmo.phase, icon = ph === 'Day' ? '☀' : ph === 'Night' ? '☾' : '◐'
-  todBtn.textContent = `${icon} ${atmo.clock}`; todBtn.title = `Time of day — ${TIME_LABEL[atmo.state.timeMode]} (N)`
-}
-function cycleTime() { if (!atmo) return; const m = atmo.cycleTime(); toast(`Time: ${TIME_LABEL[m]}`, 1300); paintClock(); track('time_cycle', { mode: m }) }
-function cycleWeather() { if (!atmo) return; const m = atmo.cycleWeather(); wxBtn.textContent = 'Sky: ' + WX_LABEL[m]; toast(`Weather: ${WX_LABEL[m]}`, 1300); track('weather_cycle', { mode: m }) }
-todBtn.addEventListener('click', cycleTime); wxBtn.addEventListener('click', cycleWeather)
+function cycleTime() { if (!atmo) return; const m = atmo.cycleTime(); toast(`Time of day: ${TIME_LABEL[m]}`, 1300); track('time_cycle', { mode: m }); menu?.refresh() }
+function cycleWeather() { if (!atmo) return; const m = atmo.cycleWeather(); toast(`Weather: ${WX_LABEL[m]}`, 1300); track('weather_cycle', { mode: m }); menu?.refresh() }
 
 /* ------------------------------------------------------------------ boot */
 if ('serviceWorker' in navigator && import.meta.env.PROD) addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}))
@@ -915,8 +968,8 @@ function takePhoto() {
   const src = canvas, out = document.createElement('canvas'); out.width = src.width; out.height = src.height
   const c = out.getContext('2d'); c.drawImage(src, 0, 0)
   const s = out.height / 720, bh = 56 * s
-  c.fillStyle = 'rgba(5,5,10,.6)'; c.fillRect(0, out.height - bh, out.width, bh); c.fillStyle = '#ff2d8a'; c.fillRect(0, out.height - bh, out.width, 2 * s)
-  c.font = `300 ${17 * s}px ${F_MONO}`; c.textBaseline = 'middle'; c.fillStyle = '#f2efec'; c.fillText('IMAN MOHAMMADI — DRIVE MY PORTFOLIO', 26 * s, out.height - bh / 2); c.textAlign = 'right'; c.fillStyle = '#ff8fc0'; c.fillText('iman-mhmdi.ir', out.width - 26 * s, out.height - bh / 2)
+  c.fillStyle = 'rgba(7,9,12,.66)'; c.fillRect(0, out.height - bh, out.width, bh); c.fillStyle = '#ffb562'; c.fillRect(0, out.height - bh, out.width, 2 * s)
+  c.font = `300 ${17 * s}px ${F_MONO}`; c.textBaseline = 'middle'; c.fillStyle = '#f2efec'; c.fillText('IMAN MOHAMMADI — INTERACTIVE PORTFOLIO', 26 * s, out.height - bh / 2); c.textAlign = 'right'; c.fillStyle = '#ffb562'; c.fillText('iman-mhmdi.ir', out.width - 26 * s, out.height - bh / 2)
   const f = $('#flash'); f.classList.remove('is-on'); void f.offsetWidth; f.classList.add('is-on')
   out.toBlob(async (blob) => {
     if (!blob) return
@@ -924,35 +977,61 @@ function takePhoto() {
     track('photo')
     if (isMobile && navigator.canShare?.({ files: [file] })) { try { await navigator.share({ files: [file], title: 'Drive my portfolio', url: location.origin }); return } catch (_) { /* cancelled → fall through to download */ } }
     const a = document.createElement('a'); a.href = URL.createObjectURL(file); a.download = file.name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000)
-    toast('📷 Photo saved', 1800)
+    toast('Photo saved', 1800)
   }, 'image/png')
 }
-$('#photoBtn').addEventListener('click', takePhoto)
+let introT = 1
+/** The arrival: fade the black screen away, glide the camera down to the roundabout, then a very short welcome. */
 function startGame() {
   if (started || !ready) return
-  audio.start(); track('world_start', { mobile: isMobile }); started = true; startFrame = frame; $('#start').classList.add('is-gone'); $('#hud').classList.add('is-on'); camSnap = false
+  audio.start(); track('world_start', { mobile: isMobile, fresh: journey.fresh }); started = true; startFrame = frame
+  $('#start').classList.add('is-gone'); $('#hud').classList.add('is-on'); camSnap = false; introT = reduceMotion ? 1 : 0
   car.vel.set(0, 0); car.ang = 0
+  hud.paintJourney(); refreshObjective(); updatePlaceAndPrompt()
+  if (journey.fresh) {
+    introCtl = hud.intro(['Welcome, I’m <em>Iman</em>.', 'This is my interactive portfolio.', 'Explore the city to discover my work.', 'Your first destination is <em>marked</em>.'], () => { introCtl = null; guidance.pulse(); hud.pulseObjective(); showHint() }, { reduced: reduceMotion })
+  } else { toast(`Welcome back — ${journey.count} of ${journey.total} discovered`, 3200); showHint() }
 }
+/** Controls, shown once and only until you have driven a little. */
+let hintUntil = 0, drivenT = 0
+function showHint() {
+  hud.hint(coarse ? '<span>Drive <b>joystick</b></span><span>Look <b>drag</b></span><span>Interact <b>Enter button</b></span><span>Menu <b>top right</b></span>' : '<span>Drive <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> / arrows</span><span>Look <b>drag</b></span><span>Interact <kbd>E</kbd></span><span>Menu <kbd>Tab</kbd></span>', true)
+  hintUntil = performance.now() + 16000
+}
+$('#twoDBtn').addEventListener('click', () => p2d.show())
 const pctEl = $('#loadPct'), barEl = $('#loadBar'), btn = $('#startBtn')
 const setPct = (p) => { pctEl.textContent = Math.round(p); barEl.style.transform = `scaleX(${p / 100})` }
-const QUAL = { auto: [0, 'Auto'], high: [0, 'High'], med: [1, 'Med'], low: [3, 'Low'] }
-const qualBtn = $('#qualBtn')
+const QUAL = { auto: [0, 'Auto'], high: [0, 'High'], med: [1, 'Medium'], low: [3, 'Low'] }
 function applyQuality(mode, announce) {
   qMode = mode; try { localStorage.setItem('im-quality', mode) } catch (_) { /* ignore */ }
   setRes(mode === 'auto' ? (lowEnd ? 1 : 0) : QUAL[mode][0]); drs.settle = 3; drs.lock = 10
-  qualBtn.textContent = '⚙ ' + QUAL[mode][1]; track('quality_change', { mode }); if (announce) toast(`Graphics: ${QUAL[mode][1]}`, 1400)
+  track('quality_change', { mode }); if (announce) toast(`Graphics: ${QUAL[mode][1]}`, 1400)
 }
-qualBtn.addEventListener('click', () => { const order = ['auto', 'high', 'med', 'low']; applyQuality(order[(order.indexOf(qMode) + 1) % 4], true) })
-qualBtn.textContent = '⚙ ' + QUAL[qMode][1]
+const cycleQuality = () => { const order = ['auto', 'high', 'med', 'low']; applyQuality(order[(order.indexOf(qMode) + 1) % 4], true); menu?.refresh() }
 const muteBtn = $('#muteBtn')
-const paintMute = () => { muteBtn.textContent = audio.muted ? '♪ off' : '♪ on'; muteBtn.setAttribute('aria-pressed', String(!audio.muted)) }
-muteBtn.addEventListener('click', () => { audio.setMuted(!audio.muted); paintMute() }); paintMute()
+const paintMute = () => { muteBtn.textContent = audio.muted ? 'Sound off' : 'Sound on'; muteBtn.setAttribute('aria-pressed', String(!audio.muted)) }
+const toggleMute = () => { audio.setMuted(!audio.muted); paintMute(); menu?.refresh() }
+muteBtn.addEventListener('click', toggleMute); paintMute()
+function settingsList() {
+  return [
+    { label: 'Time of day', desc: 'Auto lets the sky move from golden hour to night', value: `${TIME_LABEL[atmo?.state.timeMode || 'auto']} · ${atmo?.clock || ''}`, action: cycleTime },
+    { label: 'Weather', desc: 'Clear, rain or storm', value: WX_LABEL[atmo?.state.wxMode || 'auto'], action: cycleWeather },
+    { label: 'Graphics', desc: 'Auto adapts resolution to your display', value: QUAL[qMode][1], action: cycleQuality },
+    { label: 'Sound', desc: 'Engine, ambience and interface sounds', value: audio.muted ? 'Off' : 'On', action: toggleMute },
+    { label: 'Guided tour', desc: 'The car drives you through every location', value: tour.on ? 'Stop' : 'Start', action: () => { menu.close(); tour.on ? cancelTour() : startTour() } },
+    { label: 'Photo', desc: 'Save a picture of the world', value: 'Take photo', action: () => { menu.close(); setTimeout(takePhoto, 500) } },
+    { label: 'Read without driving', desc: 'The full portfolio as a simple page', value: 'Open', action: () => { menu.close(); p2d.show() } },
+    { label: 'Credits', desc: '3D models and tools', value: 'Show', action: () => { menu.close(); $('#credits').classList.toggle('is-on') } },
+    { label: 'Hidden orbs', desc: 'Optional collectibles around the city', value: `${orbInfo.got} / ${orbs.length}`, action: () => {} },
+    { label: 'Progress', desc: `${journey.count} of ${journey.total} locations discovered`, value: 'Reset', action: resetProgress },
+  ]
+}
 
 /** Small studio of neon light panels, baked to a PMREM map so glossy paint reflects the world's pink/violet/cyan glow. */
 function neonEnv() {
   const es = new THREE.Scene(); es.background = new THREE.Color(0x06050c)
   const panel = (c, i, w, h, x, y, z) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color: new THREE.Color(c).multiplyScalar(i), side: THREE.DoubleSide })); m.position.set(x, y, z); m.lookAt(0, 0, 0); es.add(m) }
-  panel(PINK, 7, 14, 3.5, -9, 3, 3); panel(VIOLET, 7, 14, 3.5, 9, 3, -3); panel(0x7ee0ff, 6, 16, 2.5, 0, 10, 0)
+  panel(PINK, 7, 14, 3.5, -9, 3, 3); panel(VIOLET, 7, 14, 3.5, 9, 3, -3); panel(0xbcd0ff, 6, 16, 2.5, 0, 10, 0)
   panel(0xffffff, 4, 18, 0.7, 0, 5, -10); panel(0xffffff, 2.2, 18, 0.7, 0, 5, 10); panel(PINK, 3, 24, 4, 0, -3, 0)
   const pm = new THREE.PMREMGenerator(renderer), tex = pm.fromScene(es, 0.03).texture; pm.dispose()
   return tex
@@ -983,8 +1062,7 @@ function applyModels(m) {
 const KENNEY = { title: 'City, car, nature & racing kits', author: 'Kenney', license: 'CC0', url: 'https://kenney.nl/assets' }
 function showCredits(list) {
   list = [...list, KENNEY]
-  const box = $('#credits'); box.innerHTML = '<b class="mono">3D model credits</b>' + list.map((c) => `<p>${c.title} — ${c.author ? 'by ' + c.author : ''} ${c.license ? '· ' + c.license : ''} ${c.url ? `<a href="${c.url}" target="_blank" rel="noopener">source ↗</a>` : ''}</p>`).join('')
-  const b = $('#creditsBtn'); b.hidden = false; b.addEventListener('click', () => box.classList.toggle('is-on'))
+  $('#credits').innerHTML = '<b class="mono">3D model credits</b>' + list.map((c) => `<p>${c.title} — ${c.author ? 'by ' + c.author : ''} ${c.license ? '· ' + c.license : ''} ${c.url ? `<a href="${c.url}" target="_blank" rel="noopener">source ↗</a>` : ''}</p>`).join('')
 }
 async function fetchModels() {
   try {
@@ -1007,32 +1085,44 @@ async function boot() {
   rings = createRings({ scene, list: city.rings, isMobile })
   grid.addCircle(0, 0, 4.8, { tag: 'island' }) // the roundabout island under the hologram
   envTex = neonEnv()
-  spawnProps(city, kits); stations.buildAll(); TOUR = buildTourRoute(city, ZONES); buildMinimap(city); setPct(90)
+  landmarks = createLandmarks({ scene, addStatic, tickers, camObs, isMobile, kits, plainMat }); landmarks.buildAll()
+  spawnProps(city, kits); TOUR = buildTourRoute(city, LOCATIONS); mapRenderer = createMapRenderer({ city, districts: DISTRICTS, locations: LOCATIONS, games: GAMES }); guidance = createGuidance({ scene, city }); setPct(90)
   traffic = createTraffic({ scene, kits, city, count: isMobile ? 14 : 28, plainMat }); traffic.init(0, 28)
   debris = createDebris({ scene, kits, plainMat, perModel: isMobile ? 4 : 7 })
   modes = createModes({
     scene, city, car, traffic, score, toast, audio, sparks, kits, plainMat, track, placeCar, frame: () => frame,
     chip: (on) => tourChip.classList.toggle('is-on', on), chipHTML: (h) => { tourChip.innerHTML = h },
     cancelOthers: (m) => { cancelTour(); stopTrial(); modes.cancel(m) },
-    showPanel: (html) => { panel.innerHTML = html; panel.classList.add('is-on'); zoneMute = 9; decorate() }, hideZonePanel: () => panel.classList.remove('is-on'),
+    showPanel: (html) => chapter.showCustom(html), hideZonePanel: () => {},
   })
   garage = createGarage({ car, kits, plainMat, score, toast, audio, track, isMobile })
-  const LANDMARKS = { race: ['RACE', '3 LAPS · $600'], delivery: ['DELIVERY', 'PARCELS · CASH'], garage: ['GARAGE', '8 CARS'], stunt: ['STUNT PARK', 'RAMPS · HOOPS'] }
-  for (const z of ZONES) if (LANDMARKS[z.id]) modes.addLandmark({ x: z.pos[0], z: z.pos[1], label: LANDMARKS[z.id][0], sub: LANDMARKS[z.id][1], color: z.color, radius: z.id === 'stunt' ? 9 : 7 })
-  atmo = createAtmosphere({ scene, sky, hemi, sun: moon, bloom, renderer, uniforms, camera, isMobile, audio, city }); atmo.setEnv(envTex); atmo.update(0, 0); sky.bake(true); paintClock()
-  if (import.meta.env.DEV) { window.__city = city; window.__atmo = atmo; window.__kits = kits; window.__modes = modes; window.__garage = garage; window.__score = score }
+  for (const z of GAMES) if (z.id !== 'stunt' || true) modes.addLandmark({ x: z.id === 'stunt' ? -120 : z.pos[0], z: z.pos[1], label: z.title, sub: z.subtitle, radius: z.id === 'stunt' ? 9 : 6 })
+  chapter = createChapter({
+    root: $('#chapter'), card: $('#chCard'),
+    onClose: () => { audio.exit(); if (chapterRemote) { camSnap = true; flashScreen() } chapterRemote = false; refreshObjective(); updatePlaceAndPrompt(); hud.paintJourney() },
+    onNext: (id) => goTo(byId(id)), onEvent: (ev, id) => track('link_click', { kind: ev, loc: id }),
+  })
+  menu = createMenu({
+    root: $('#menu'), panel: $('#menuPanel'), journey, mapRenderer, locations: LOCATIONS, getMapState: mapState, plays, settings: settingsList,
+    actions: { read: (l) => openChapter(l, { remote: true }), go: goTo, jump: (l) => { travelTo(l); refreshObjective() }, play: runAct, closed: () => audio.exit() },
+  })
+  $('#menuBtn').addEventListener('click', () => menu.toggle())
+  $('#hireBtn').addEventListener('click', () => openChapter(byId('contact'), { remote: true }))
+  $('#objective').addEventListener('click', () => { if (objective) goTo(objective); else if (journey.explored) openChapter(byId('contact'), { remote: true }) })
+  $('#promptBtn').addEventListener('click', interact)
+  atmo = createAtmosphere({ scene, sky, hemi, sun: moon, bloom, renderer, uniforms, camera, isMobile, audio, city }); atmo.setEnv(envTex); atmo.update(0, 0); sky.bake(true)
+  if (import.meta.env.DEV) { window.__city = city; window.__atmo = atmo; window.__kits = kits; window.__modes = modes; window.__garage = garage; window.__score = score; window.__journey = journey; window.__hud = hud; window.__menu = menu; window.__chapter = chapter; window.__openChapter = openChapter }
   const models = await modelsP; applyModels(models); garage.init(); showCredits(models.credits); setPct(97)
   renderer.compile(scene, camera); atmo.warm(); composer.render(); setPct(100)
   ready = true
-  btn.disabled = false; $('#startLabel').textContent = coarse ? 'Tap to start' : 'Press Enter to start'
+  btn.disabled = false; $('#startLabel').textContent = 'Enter my world'
   btn.addEventListener('click', startGame)
   const tb = $('#tourBtn'); tb.disabled = false; tb.addEventListener('click', startTour)
   if (qMode !== 'auto') setRes(QUAL[qMode][0]); else if (lowEnd) setRes(1)
   if (reduceMotion) $('#motionWarn').hidden = false
-  if (coarse) btn.classList.add('is-touch')
   renderer.setAnimationLoop(tick)
 }
 renderer.setAnimationLoop(() => { clock.getDelta() }) // keep clock sane while loading
 boot()
 
-if (import.meta.env.DEV) window.__w = { renderer, scene, car, composer, camera, tour, get TOUR() { return TOUR } }
+if (import.meta.env.DEV) window.__w = { renderer, scene, car, composer, camera, tour, get TOUR() { return TOUR }, skipIntro() { introT = 1; introCtl?.skip() }, get frame() { return frame } }

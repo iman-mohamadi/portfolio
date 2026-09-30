@@ -17,16 +17,16 @@ const DAY_SECONDS = 840 // base length of a 24 h cycle in auto mode (the sky spe
 
 // palette: [night, day]
 const P = {
-  hor: [C(0x1c0a2c), C(0xb4d2f2)], zen: [C(0x03030c), C(0x2f6fd6)],
-  fog: [C(0x0a0e1e), C(0xa9c6e6)], hemiSky: [C(0x6a78c8), C(0xcfe2ff)], hemiGround: [C(0x1a1626), C(0x6f7a5c)],
-  sun: [C(0xa9b8ff), C(0xfff0d2)],
+  hor: [C(0x121b2b), C(0xb7d3ee)], zen: [C(0x04060c), C(0x3273d4)],
+  fog: [C(0x0b111b), C(0xaac6e4)], hemiSky: [C(0x7b90b8), C(0xcfe2ff)], hemiGround: [C(0x1a1d24), C(0x6f7a5c)],
+  sun: [C(0xb7c8e8), C(0xfff0d2)],
 }
 const OVERCAST = { hor: C(0x8a929c), zen: C(0x5a6270), fog: C(0x7d8590), sun: C(0xb9c2d4) }
-const TW = C(0xff7440), TW_FOG = C(0x5a2a30)
+const TW = C(0xff8a4a), TW_FOG = C(0x7a5a42)
 const tmp = new THREE.Color(), tmp2 = new THREE.Color()
 
 export function createAtmosphere({ scene, sky, hemi, sun, bloom, renderer, uniforms, camera, isMobile, audio, city, onChange = () => {} }) {
-  const state = { tod: 18.2, timeMode: 'auto', wxMode: 'auto', rain: 0, rainTarget: 0, wxTimer: 70, day: 0, night: 1, flash: 0, nextBolt: 6, bolts: [] }
+  const state = { tod: 17.3, timeMode: 'auto', wxMode: 'auto', rain: 0, rainTarget: 0, wxTimer: 70, day: 0, night: 1, flash: 0, nextBolt: 6, bolts: [] }
   const rnd = seeded(5)
   const haze = new THREE.Color()
 
@@ -117,7 +117,7 @@ export function createAtmosphere({ scene, sky, hemi, sun, bloom, renderer, unifo
     sky.uniforms.uSun.value.set(Math.cos(th) * 0.85, elev * 0.95 + 0.02, 0.45).normalize()
 
     // fog + background follow the horizon so distant blocks melt into the sky
-    tmp2.copy(P.fog[0]).lerp(P.fog[1], day).lerp(OVERCAST.fog, oc * (0.3 + 0.7 * day)).lerp(TW_FOG, tw * 0.55 * (1 - oc))
+    tmp2.copy(P.fog[0]).lerp(P.fog[1], day).lerp(OVERCAST.fog, oc * (0.3 + 0.7 * day)).lerp(TW_FOG, tw * 0.4 * (1 - oc))
     scene.fog.color.copy(tmp2); scene.background.copy(tmp2)
     scene.fog.density = lerp(0.0044, 0.0028, day) + wet * 0.0034 + tw * 0.0008
     haze.copy(sky.uniforms.uHor.value); sky.setNight(night * (1 - oc * 0.7), haze)

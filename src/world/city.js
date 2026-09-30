@@ -15,15 +15,15 @@ export const blockCenter = (b) => tileX(b * 4 + 2) // block index 0..7 → world
  *  D downtown · C commercial · T tech park · S suburb · P park · H harbour · X stunt arena · Z plaza · R racing */
 export const BLOCKS = [
   'PDDCCTTP',
-  'PADCCTKP',
-  'SCCCCCTP',
+  'PDDCCTTP',
+  'SCACCCTP',
   'XXXZZCCP',
   'XXXZZCCP',
-  'SSCWWCHH',
-  'SSCWWCQH',
+  'SSLWWQHH',
+  'SSCWWCCH',
   'SSPWWRHH',
 ]
-/** A about plaza · K skills plaza · Q contact plaza · W gallery-avenue flank (kept open for the project boards) */
+/** A profile plaza · L 3D-lab plaza · Q contact plaza · W project-avenue flank (kept open for the project sets) */
 
 const DIRS = { N: [0, -1], E: [1, 0], S: [0, 1], W: [-1, 0] }
 const ORDER = ['W', 'S', 'E', 'N'] // +90° of yaw moves W→S→E→N→W (verified against the kit)
@@ -223,8 +223,9 @@ export function createCity({ scene, kits, uniforms, mobile, seed = 42 }) {
       const outer = bx === 3 ? -9 : 9
       for (const sz of [-9, 9]) { building(pick(rnd() < 0.5 ? MID : LOW), cx + outer * 1.4, cz + sz, bx === 3 ? Math.PI / 2 : -Math.PI / 2) }
       for (let k = 0; k < 6; k++) { const x = cx + (bx === 3 ? -1 : 1) * (2 + rnd() * 6), z = cz + (rnd() - 0.5) * 30; if (has('nat/tree_small')) tree('nature', pick(TREES), x, z, NAT * 0.6) }
-    } else if (t === 'A' || t === 'K' || t === 'Q') { // open plazas with a ring of trees; the landmark is added by stations.js
-      for (let k = 0; k < 14; k++) { const a = (k / 14) * 6.283 + rnd() * 0.3, r = 15 + rnd() * 2; if (has('nat/tree_default')) tree('nature', pick(TREES), cx + Math.cos(a) * r, cz + Math.sin(a) * r, NAT * (0.7 + rnd() * 0.4)) }
+    } else if (t === 'A' || t === 'L' || t === 'Q') { // open plazas with a ring of trees; the landmark is added by stations.js
+      const plazaN = t === 'A' ? 14 : 8, plazaR = t === 'A' ? 15 : 17.2 // the lab and terminal plazas keep their centre open for the exhibits
+      for (let k = 0; k < plazaN; k++) { const a = (k / plazaN) * 6.283 + rnd() * 0.3, r = plazaR + rnd() * (t === 'A' ? 2 : 0.6); if (has('nat/tree_default')) tree('nature', pick(TREES), cx + Math.cos(a) * r, cz + Math.sin(a) * r, NAT * (0.7 + rnd() * 0.4)) }
     } else if (t === 'P' || t === 'Z') {
       const n = mobile ? 10 : 18
       for (let k = 0; k < n; k++) { const x = cx + (rnd() - 0.5) * 32, z = cz + (rnd() - 0.5) * 32; if (Math.hypot(x, z) < 24) continue; const r = rnd(); if (r < 0.62) tree('nature', pick(rnd() < 0.25 ? PINES : TREES), x, z, NAT * (0.7 + rnd() * 0.5)); else if (r < 0.8 && has(ROCKS[0])) { put('nature', pick(ROCKS), x, z, rnd() * 6.28, NAT * (0.6 + rnd() * 0.6)); grid.addCircle(x, z, 2.2, { tag: 'rock' }) } else put('nature', pick(BUSH), x, z, rnd() * 6.28, NAT * (0.8 + rnd() * 0.5)) }
@@ -285,7 +286,7 @@ export function createCity({ scene, kits, uniforms, mobile, seed = 42 }) {
   const ground = new THREE.Mesh(new THREE.PlaneGeometry(1400, 1400), new THREE.MeshLambertMaterial({ map: gt }))
   ground.rotation.x = -Math.PI / 2; ground.position.y = -0.02; scene.add(ground)
   // pavement under every block so buildings sit on a plinth of concrete rather than raw lawn
-  const pave = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshStandardMaterial({ color: 0x8c8f98, roughness: 1 }), 64)
+  const pave = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshLambertMaterial({ color: 0x8c8f98 }), 64)
   const dm = new THREE.Matrix4(), q = new THREE.Quaternion().setFromEuler(new THREE.Euler(-Math.PI / 2, 0, 0))
   layout.blocks.forEach((b, k) => { const s = b.type === 'P' ? 0 : 35.4; dm.compose(new THREE.Vector3(b.x, 0.03, b.z), q, new THREE.Vector3(s, s, 1)); pave.setMatrixAt(k, dm) })
   pave.frustumCulled = false; group.add(pave)
@@ -297,9 +298,15 @@ export function createCity({ scene, kits, uniforms, mobile, seed = 42 }) {
   /** Nearest intersection node to a world position. */
   layout.nearestNode = (x, z) => { const a = clampI(Math.round((x / T + (G - 1) / 2) / 4), 0, N - 1), b = clampI(Math.round((z / T + (G - 1) / 2) / 4), 0, N - 1); return nodes[b][a] }
   /** Shortest road route between two world positions (BFS over intersections), as a list of [x, z] points. */
+  /** True when a stunt ramp sits on the road between two adjacent intersections (traffic and the tour keep off those roads). */
+  layout.edgeBlocked = (n, m) => {
+    const i0 = Math.min(n.a, m.a) * 4, i1 = Math.max(n.a, m.a) * 4, j0 = Math.min(n.b, m.b) * 4, j1 = Math.max(n.b, m.b) * 4
+    for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) if (jumpTiles.has(i + ',' + j)) return true
+    return false
+  }
   layout.route = (ax, az, bx, bz) => {
     const s = layout.nearestNode(ax, az), e = layout.nearestNode(bx, bz), prev = new Map([[s, null]]), q = [s]
-    while (q.length) { const n = q.shift(); if (n === e) break; for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const m = nodes[n.b + dz]?.[n.a + dx]; if (m && !prev.has(m)) { prev.set(m, n); q.push(m) } } }
+    while (q.length) { const n = q.shift(); if (n === e) break; for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const m = nodes[n.b + dz]?.[n.a + dx]; if (m && !prev.has(m) && !layout.edgeBlocked(n, m)) { prev.set(m, n); q.push(m) } } }
     const out = []; for (let n = e; n; n = prev.get(n)) out.push([n.x, n.z]); return out.reverse()
   }
   layout.stats = stats; layout.grid = grid; layout.group = group; layout.isRoad = (x, z) => { const i = Math.round(x / T + (G - 1) / 2), j = Math.round(z / T + (G - 1) / 2); return road(i, j) }

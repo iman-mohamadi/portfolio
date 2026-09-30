@@ -80,6 +80,10 @@ export function createAudio() {
     },
     /** Brighter, airier arpeggio in daylight; darker and wetter at night. */
     mood(day) { if (!on || Math.abs(day - lastMood) < 0.02) return; lastMood = day; arpLp.frequency.setTargetAtTime(1400 + day * 2600, ctx.currentTime, 0.6) },
+    /** Soft "opening" and "closing" whooshes for chapters and menus, and a discovery chime. */
+    enter() { tone(260, 0.5, 'sine', 0.07, 620); setTimeout(() => tone(520, 0.4, 'triangle', 0.04, 780), 90) },
+    exit() { tone(620, 0.35, 'sine', 0.05, 240) },
+    discover() { [523, 659, 784].forEach((f, i) => setTimeout(() => tone(f, 0.55, 'sine', 0.09), i * 110)) },
     thud() { tone(120, 0.25, 'sawtooth', 0.2, 40) },
     blip() { tone(880, 0.09, 'triangle', 0.08); setTimeout(() => tone(1320, 0.12, 'triangle', 0.06), 60) },
     get muted() { return muted },

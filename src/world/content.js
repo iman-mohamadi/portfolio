@@ -1,16 +1,9 @@
-// All copy + layout for the 3D world. Positions are [x, z] on the ground plane; the car spawns at (0, 6) facing north (-z).
+// Raw portfolio copy. src/world/portfolio.js turns this into locations, districts and the journey the world is built from.
 
 export const ORB_NAMES = ['Vue 3', 'Nuxt', 'Next.js', 'React', 'Three.js', 'GLSL', 'GSAP', 'WebGL', 'Pinia', 'Tailwind', 'Node.js', 'TypeScript', 'FastAPI', 'GraphQL', 'Nitro', 'VueUse', 'R3F', 'Zustand']
 
-export const DIALOGUE = [
-  "Hey — I'm Iman Mohammadi. Welcome to my world.",
-  "By day I'm a senior front-end architect: Vue, Nuxt, Next.js and a lot of WebGL. Nine-plus years, 93 systems shipped, four continents served.",
-  'This whole site is a live Three.js city. Drive around — About is north-west, Skills north-east, my Work lines the avenue to the south.',
-  'East along the boulevard is my career, and the contact harbour waits far south-east. Collect the orbs, jump the ramps, race the rivals. Have fun!',
-]
-
 export const PROJECTS = [
-  { id: 'raya', n: '01', name: 'Raya UI', role: 'Author / Creator', stack: 'Vue.js · Nuxt · Tailwind CSS', chips: ['Vue 3', 'Nuxt 3', 'Tailwind', 'TypeScript'], chip: '40 teams', img: 'raya', url: 'https://raya-ui.com', host: 'raya-ui.com', text: 'Open-source, tokenised design system built to stay coherent across 40 product teams.', points: ['High-performance, interactive Vue primitives — black, bold and strictly typed', 'Design tokens keep 40 product teams visually coherent', 'Open source on GitHub'], viz: 'grid' },
+  { id: 'raya', n: '01', name: 'Raya UI', role: 'Author / Creator', stack: 'Vue.js · Nuxt · Tailwind CSS', chips: ['Vue 3', 'Nuxt 3', 'Reka UI', 'shadcn-vue', 'Tailwind', 'TypeScript'], chip: '40 teams', img: 'raya', url: 'https://raya-ui.com', host: 'raya-ui.com', text: 'Open-source, tokenised design system built to stay coherent across 40 product teams.', points: ['High-performance, interactive Vue primitives — black, bold and strictly typed', 'Design tokens keep 40 product teams visually coherent', 'Open source on GitHub'], viz: 'grid' },
   { id: 'hotelyar', n: '02', name: 'Hotelyar', role: 'Senior Architect', stack: 'Vue.js · Nuxt · SSR', chips: ['Vue 3', 'Nuxt 3', 'SSR / SSG', 'Tailwind'], chip: '1.2M queries/s', img: 'hotelyar', url: 'https://hotelyar.com', host: 'hotelyar.com', text: 'Enterprise reservation platform engineered to route 1.2M queries/sec at low TTFB.', points: ['Built to route 1.2M queries per second', 'Low TTFB through SSR/SSG, code splitting and asset caching', 'Figma prototypes turned into production Nuxt + Tailwind'], viz: 'bars' },
   { id: 'woodcoder', n: '03', name: 'Woodcoder', role: 'Lead 3D Engineer', stack: 'Vue.js · Three.js · WebGL', chips: ['Vue 3', 'Three.js', 'WebGL', 'GSAP'], chip: '60 fps · WebGL', img: 'woodcoder', url: 'https://woodcoder.com', host: 'woodcoder.com', text: 'Live parametric 3D furniture configurator holding 60fps on integrated GPUs.', points: ['Live parametric modeling — change the size, see the furniture rebuild', 'Holds 60fps even on integrated GPUs', 'GSAP-driven UI animation on top of the 3D scene'], viz: 'cube' },
   { id: 'rizo', n: '04', name: 'Rizo', role: 'Lead Engineer', stack: 'Next.js · Server Components', chips: ['Next.js', 'React Server Components', 'TypeScript'], chip: 'RSC · edge', img: null, url: 'https://rizo.top', host: 'rizo.top', text: 'Edge-deployed platform on React Server Components for maximum speed & SEO.', points: ['Edge-deployed on the Next.js App Router', 'React Server Components keep client JavaScript minimal', 'Tuned for speed and SEO'], viz: 'tree' },
@@ -34,46 +27,22 @@ export const SKILLS = [
 
 export const STATS = [['9+', 'years experience'], ['93', 'systems shipped'], ['4', 'continents served'], ['1.2M', 'queries / sec routed']]
 
-/** Gallery Avenue: the south road (x = 0). Boards stand on alternate sides, facing the road. */
-export const AVENUE = { z0: 58, dz: 26 }
-export const GATES = [72, 120, 168] // career gates span the east boulevard (z = 0)
-const projZones = PROJECTS.map((p, i) => {
-  const z = AVENUE.z0 + i * AVENUE.dz, side = i % 2 ? 1 : -1
-  return { ...p, board: [side * 10.5, z], face: side > 0 ? -Math.PI / 2 : Math.PI / 2, pos: [0, z] }
-})
-
-const proj = (p) => ({
-  id: p.id, kind: 'project', name: p.name, nav: null, pos: p.pos, r: 11, url: p.url,
-  html: `<span class="tag mono">${p.n} — Selected work · ${p.role}</span><h3>${p.name}</h3><p class="chips">${p.chips.map((t) => `<i class="mono">${t}</i>`).join('')}</p><p>${p.text}</p><ul class="pts">${p.points.map((t) => `<li>${t}</li>`).join('')}</ul><a class="btn mono" data-ev="project_visit" href="${p.url}" target="_blank" rel="noopener">${p.host} ↗ <kbd>E</kbd></a>`,
-})
-
-/** Game hubs: each has a landmark in the city and a panel with a start button (E / tap). */
-export const RACE_START = [72, 144]
-const game = (o) => ({ kind: 'game', nav: null, ...o })
-export const ZONES = [
-  { id: 'home', kind: 'home', name: 'Welcome', nav: 'Home', pos: [0, 0], r: 30, spawn: [0, 28], color: 0xff2d8a },
-  {
-    id: 'about', kind: 'about', name: 'About', nav: 'About', pos: [-120, -120], r: 24, spawn: [-99, -120], color: 0xff2d8a,
-    html: `<span class="tag mono">01 — Summary</span><h3>Nine years of shipping.</h3><p>Senior front-end and full-stack developer architecting high-performance, high-traffic web systems. Creator of <b>Raya UI</b> — an open-source design system — and builder of interactive Three.js / WebGL apps that hold their shape at scale.</p><div class="stats">${STATS.map(([a, b]) => `<div><b>${a}</b><span class="mono">${b}</span></div>`).join('')}</div>`,
-  },
-  {
-    id: 'skills', kind: 'skills', name: 'Skills', nav: 'Skills', pos: [120, -120], r: 24, spawn: [99, -120], color: 0x7a5cff,
-    html: `<span class="tag mono">— Technical expertise</span><h3>The toolbox.</h3><ul class="skills">${SKILLS.map((s) => `<li><b>${s.g}</b><span>${s.t}</span></li>`).join('')}</ul>`,
-  },
-  { id: 'work', kind: 'work', name: 'Work', nav: 'Work', pos: [0, 44], r: 3, spawn: [0, 40], color: 0xff2d8a, silent: true },
-  ...projZones.map(proj),
-  ...JOBS.map((j, i) => ({
-    id: j.id, kind: 'job', name: j.co, nav: i === 0 ? 'Path' : null, pos: [GATES[i], 0], r: 15, spawn: [GATES[i] - 22, 0], color: 0x7a5cff,
-    html: `<span class="tag mono">${j.date}</span><h3>${j.role}</h3><h4>${j.co}</h4><ul class="pts">${j.pts.map((p) => `<li>${p}</li>`).join('')}</ul>`,
-  })),
-  game({ id: 'race', name: 'Street Circuit', pos: RACE_START, r: 15, spawn: [RACE_START[0] - 26, RACE_START[1] + 3], color: 0x7ee0ff, act: 'race', html: `<span class="tag mono">Game — Street Circuit</span><h3>Race the rivals.</h3><p>Three laps around the avenues against Nova, Vex and Rook. Traffic clears off, checkpoints light up, first place pays <b>$600</b>.</p><div class="cta"><a class="btn primary mono" data-act="race" href="#">Start race <kbd>E</kbd></a></div>` }),
-  game({ id: 'delivery', name: 'Delivery Depot', pos: [24, -24], r: 11, spawn: [24, -6], color: 0xffd27a, act: 'delivery', html: `<span class="tag mono">Game — Delivery Rush</span><h3>Beat the clock.</h3><p>Grab parcels and drop them across town before the timer runs out. Five jobs a shift — faster drops pay more.</p><div class="cta"><a class="btn primary mono" data-act="delivery" href="#">Start shift <kbd>E</kbd></a></div>` }),
-  game({ id: 'garage', name: 'Garage', pos: [-24, 24], r: 11, spawn: [-6, 24], color: 0xff2d8a, act: 'garage', html: `<span class="tag mono">Game — Garage</span><h3>Pick your ride.</h3><p>Spend the cash you earn on eight cars — from a taxi to a future GT — each with its own handling.</p><div class="cta"><a class="btn primary mono" data-act="garage" href="#">Open garage <kbd>E</kbd></a></div>` }),
-  game({ id: 'stunt', name: 'Stunt Park', pos: [-120, 0], r: 74, spawn: [-144, -40], color: 0xa892ff, act: 'stunt', html: `<span class="tag mono">Game — Stunt Park</span><h3>Send it.</h3><p>Ramps over the crossroads, plateaus and hoops. Hold <kbd>W</kbd>/<kbd>S</kbd> in the air to flip and <kbd>A</kbd>/<kbd>D</kbd> to barrel-roll — land clean and the chain multiplies.</p><div class="cta"><a class="btn primary mono" data-act="stunt" href="#">Take me to the ramps</a></div>` }),
-  {
-    id: 'contact', kind: 'contact', name: 'Contact', nav: 'Contact', pos: [120, 120], r: 24, spawn: [99, 120], color: 0xff2d8a,
-    html: `<span class="tag mono">04 — Contact</span><h3>Let's build something that moves.</h3><p>Available for new roles in 2026 · Tehran, Iran · open to remote.</p><div class="cta"><a class="btn primary mono" data-ev="hire_email" href="mailto:im.enzo.021@gmail.com?subject=Let%27s%20talk%20%E2%80%94%20from%20your%20portfolio&body=Hi%20Iman%2C%0A%0A">Hire me — email ↗</a><a class="btn mono" data-ev="cv_download" href="/Iman-Mohammadi-CV.pdf" download>Download CV ↓</a></div><a class="big-link" data-ev="email" href="mailto:im.enzo.021@gmail.com">im.enzo.021@gmail.com</a><div class="links mono"><a data-ev="github" href="https://github.com/iman-mohamadi" target="_blank" rel="noopener">GitHub ↗</a><a data-ev="telegram" href="https://t.me/iEnzO" target="_blank" rel="noopener">Telegram ↗</a><a data-ev="instagram" href="https://instagram.com/im_mhmdi" target="_blank" rel="noopener">Instagram ↗</a><a data-ev="phone" href="tel:+989384249894">+98 938 424 9894</a></div>`,
-  },
-]
-
-export { projZones }
+export const PROFILE = {
+  name: 'Iman Mohammadi',
+  title: 'Senior Full-Stack & 3D Web Engineer',
+  aka: 'Senior front-end architect · WebGL & 3D web',
+  place: 'Tehran, Iran',
+  availability: 'Available for new roles in 2026 · open to remote',
+  summary: 'Senior front-end and full-stack developer architecting high-performance, high-traffic web systems. Creator of Raya UI — an open-source design system — and builder of interactive Three.js / WebGL apps that hold their shape at scale.',
+}
+/** Every outbound link. `linkedin` is intentionally empty until a real URL is added — the UI only renders links that exist. */
+export const LINKS = {
+  email: 'im.enzo.021@gmail.com',
+  github: 'https://github.com/iman-mohamadi',
+  telegram: 'https://t.me/iEnzO',
+  instagram: 'https://instagram.com/im_mhmdi',
+  linkedin: null,
+  phone: '+989384249894',
+  phoneLabel: '+98 938 424 9894',
+  cv: '/Iman-Mohammadi-CV.pdf',
+}
