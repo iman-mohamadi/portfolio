@@ -132,8 +132,8 @@ export function createAtmosphere({ scene, sky, hemi, sun, bloom, renderer, unifo
     // the moon stays where it was; the sun sweeps the sky (pure direction – no shadows are cast)
     sun.position.set(lerp(-80, Math.cos(th) * 150, day), lerp(140, 30 + elev * 150, day), lerp(60, 70, day))
     renderer.toneMappingExposure = lerp(1.05, 0.92, day) * (1 - oc * 0.06)
-    bloom.strength = lerp(0.55, 0.32, day) + oc * 0.06 + flash * 0.4
-    bloom.threshold = lerp(0.6, 0.78, day)
+    bloom.strength = lerp(0.34, 0.24, day) + oc * 0.06 + flash * 0.4
+    bloom.threshold = lerp(0.78, 0.85, day)
 
     // city lights
     uniforms.uNight.value = night

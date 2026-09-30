@@ -99,9 +99,9 @@ export function createCity({ scene, kits, uniforms, mobile, seed = 42 }) {
           #endif
           if(win>0.&&uNight>.02){
           vec3 cell=floor(vec3(vWp.x+vWp.z,vWp.y*.9,vWp.x-vWp.z)*.75);float h=hh(cell);
-          float on=step(.42,h)*(.8+.2*sin(uTime*.6+h*40.));
-          vec3 tint=mix(vec3(1.,.72,.38),vec3(.6,.82,1.),step(.78,hh(cell+7.)));
-          totalEmissiveRadiance+=win*on*uNight*tint*1.9;}
+          float on=step(.6,h)*(.85+.15*sin(uTime*.6+h*40.));
+          vec3 tint=mix(vec3(1.,.6,.28),vec3(.45,.62,.9),step(.88,hh(cell+7.)));
+          totalEmissiveRadiance+=win*on*uNight*tint*.5;} // soft, warm panes: bright ones burn the eyes at night
         }`)
     }
     matCache.set(src, m); return m
