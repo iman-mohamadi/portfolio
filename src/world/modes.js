@@ -57,7 +57,7 @@ export function createModes(ctx) {
     const g = new THREE.Group(); g.position.set(START.x, 0, START.z)
     const tex = new THREE.CanvasTexture((() => { const c = document.createElement('canvas'); c.width = 256; c.height = 32; const x = c.getContext('2d'); for (let i = 0; i < 32; i++) for (let j = 0; j < 4; j++) { x.fillStyle = (i + j) % 2 ? '#fff' : '#111'; x.fillRect(i * 8, j * 8, 8, 8) } return c })()); tex.colorSpace = THREE.SRGBColorSpace
     const bar = new THREE.Mesh(new THREE.BoxGeometry(0.6, 1.4, 13.6), new THREE.MeshBasicMaterial({ map: tex, toneMapped: false })); bar.position.set(0, 7.6, 0)
-    for (const s of [-1, 1]) { const post = new THREE.Mesh(new THREE.BoxGeometry(0.7, 8.2, 0.7), new THREE.MeshStandardMaterial({ color: 0x14141c, emissive: 0xff2d8a, emissiveIntensity: 0.8 })); post.position.set(0, 4.1, s * 6.8); g.add(post) }
+    for (const s of [-1, 1]) { const post = new THREE.Mesh(new THREE.BoxGeometry(0.7, 8.2, 0.7), new THREE.MeshStandardMaterial({ color: 0x14141c, emissive: 0xffb562, emissiveIntensity: 0.8 })); post.position.set(0, 4.1, s * 6.8); g.add(post) }
     const strip = new THREE.Mesh(new THREE.PlaneGeometry(2, 12), new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: 0.55, toneMapped: false })); strip.rotation.x = -Math.PI / 2; strip.position.y = 0.34
     g.add(bar, strip); scene.add(g); return g
   })()

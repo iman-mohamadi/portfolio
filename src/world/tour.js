@@ -24,7 +24,7 @@ export function buildTourRoute(city, locations) {
     if (route.length >= 2 && between(route[route.length - 2], route[route.length - 1], t)) route.pop()
     if (route.length >= 2 && between(route[0], route[1], cur)) route.shift()
     lane([[cur[0], cur[1]], ...route, t]).slice(1, -1).forEach((p) => out.push({ p }))
-    out.push({ p: [t[0], t[1]], dwell: s.dwell }); cur = t
+    out.push({ p: [t[0], t[1]], dwell: s.dwell, loc: s.z.id }); cur = t
   }
   return out
 }

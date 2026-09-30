@@ -1,7 +1,7 @@
 {
-  "name": "Iman Mohammadi — Drive My Portfolio",
+  "name": "Iman Mohammadi — Interactive 3D Portfolio",
   "short_name": "Iman",
-  "description": "A 3D world portfolio: drive through the work, skills and career of senior front-end architect Iman Mohammadi.",
+  "description": "A 3D world portfolio: explore the work, experience and experiments of Iman Mohammadi, senior full-stack & 3D web engineer.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

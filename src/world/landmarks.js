@@ -1,4 +1,5 @@
 import * as THREE from 'three'
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import { canvasTex, basic, glow, dark, F_SANS, F_SERIF, F_MONO, PINK, VIOLET, seeded } from './helpers.js'
 import { instanceModel, dynamicInstances } from './kits.js'
 import { LOCATIONS, PROFILE, STATS, GATES, byId } from './portfolio.js'
@@ -17,7 +18,26 @@ export function createLandmarks({ scene, addStatic, tickers, camObs, isMobile, k
   const plate = (w, h, pw, ph, draw, opts = {}) => new THREE.Mesh(new THREE.PlaneGeometry(w, h), basic(tex(pw, ph, draw), { depthWrite: opts.depthWrite ?? true, transparent: opts.transparent ?? false, ...(opts.mat || {}) }))
   const box = (w, h, d, mat, x = 0, y = 0, z = 0) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); m.position.set(x, y, z); return m }
   const lam = (c, extra = {}) => new THREE.MeshLambertMaterial({ color: c, ...extra })
-  const group = (x, z, ry = 0, s = 1) => { const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = ry; g.scale.setScalar(s); scene.add(g); return g }
+  const roots = [] // every landmark group, merged into few draw calls once built
+  const group = (x, z, ry = 0, s = 1) => { const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = ry; g.scale.setScalar(s); scene.add(g); roots.push(g); return g }
+  const animated = new Set() // objects a ticker moves — never baked into a merged mesh
+  const anim = (o) => { animated.add(o); return o }
+  const MERGEABLE = new Set(['BoxGeometry', 'CylinderGeometry'])
+  const matKey = (m) => `${m.type}|${m.color.r.toFixed(3)},${m.color.g.toFixed(3)},${m.color.b.toFixed(3)}|${m.emissive ? `${m.emissive.r.toFixed(3)},${m.emissive.g.toFixed(3)},${m.emissive.b.toFixed(3)}` : ''}|${m.emissiveIntensity ?? ''}|${m.roughness ?? ''}|${m.metalness ?? ''}|${m.flatShading ? 1 : 0}|${m.toneMapped ? 1 : 0}`
+  /** Bake a group's static, untextured boxes and cylinders into one mesh per material (dozens of draw calls → a handful). */
+  function mergeStatic(g) {
+    g.updateMatrixWorld(true)
+    const inv = new THREE.Matrix4().copy(g.matrixWorld).invert(), local = new THREE.Matrix4(), buckets = new Map(), gone = []
+    const moves = (o) => { for (let p = o; p && p !== g.parent; p = p.parent) if (animated.has(p)) return true; return false }
+    g.traverse((o) => {
+      const m = o.material
+      if (!o.isMesh || o.isInstancedMesh || !MERGEABLE.has(o.geometry.type) || !m || Array.isArray(m) || !m.color || m.map || m.transparent || m.wireframe || m.side !== THREE.FrontSide || moves(o)) return
+      const key = matKey(m), geo = o.geometry.clone(); geo.applyMatrix4(local.multiplyMatrices(inv, o.matrixWorld))
+      let b = buckets.get(key); if (!b) buckets.set(key, (b = { mat: m, geos: [] })); b.geos.push(geo); gone.push(o)
+    })
+    for (const o of gone) o.removeFromParent()
+    for (const { mat, geos } of buckets.values()) { const merged = mergeGeometries(geos); if (merged) g.add(new THREE.Mesh(merged, mat)); geos.forEach((x) => x.dispose()) }
+  }
   const view = (id, from, at) => { const l = byId(id); if (l) l.view = { from, at } }
   const text = (x, str, xx, yy, { font, color = PAPER, align = 'left', max } = {}) => { x.font = font; x.fillStyle = color; x.textAlign = align; x.fillText(str, xx, yy, max) }
 
@@ -82,7 +102,7 @@ export function createLandmarks({ scene, addStatic, tickers, camObs, isMobile, k
         text(c, `0${i + 1} / 03`, w - 56, 84, { font: `300 36px ${F_MONO}`, color: MUTE, align: 'right' })
       })
       const a = mk(); a.position.set(0, 8.2, -0.45); a.rotation.y = Math.PI; g.add(a); const b = mk(); b.position.set(0, 8.2, 0.45); g.add(b)
-      view(j.id, [x - 20, 6.5, 9], [x, 6.5, 0])
+      view(j.id, [x - 20, 7, 1.5], [x, 6.5, 0]) // over the boulevard: the south side is a wall of buildings
     })
   }
 
@@ -169,9 +189,9 @@ export function createLandmarks({ scene, addStatic, tickers, camObs, isMobile, k
       for (const [x, z] of [[-5, -3], [5, -3], [-5, 3], [5, 3]]) g.add(box(0.36, 4.4, 0.36, dwood, x, 2.2, z))
       g.add(box(11.2, 0.3, 7.4, dwood, 0, 4.5, 0)); g.add(box(11.5, 0.06, 7.7, glow(PINK, 1.4), 0, 4.32, 0))
       g.add(box(8, 0.2, 3, wood, 0, 1.05, -0.4))
-      const top = box(1, 0.16, 2.2, lam(0xe2c79f), 0, 1.66, -0.4); g.add(top)
-      const legs = [[-1, -1], [1, -1], [-1, 1], [1, 1]].map(([sx, sz]) => { const l = box(0.14, 0.55, 0.14, lam(0xe2c79f), 0, 1.3, -0.4 + sz * 0.9); g.add(l); return { l, sx } })
-      const dim = box(1, 0.05, 0.05, glow(0x9db8ff, 2.4), 0, 2.15, 1.2); g.add(dim)
+      const top = anim(box(1, 0.16, 2.2, lam(0xe2c79f), 0, 1.66, -0.4)); g.add(top)
+      const legs = [[-1, -1], [1, -1], [-1, 1], [1, 1]].map(([sx, sz]) => { const l = anim(box(0.14, 0.55, 0.14, lam(0xe2c79f), 0, 1.3, -0.4 + sz * 0.9)); g.add(l); return { l, sx } })
+      const dim = anim(box(1, 0.05, 0.05, glow(0x9db8ff, 2.4), 0, 2.15, 1.2)); g.add(dim)
       tickers.push((t) => { const w = 2.4 + (Math.sin(t * 0.8) * 0.5 + 0.5) * 2.6; top.scale.x = w; dim.scale.x = w; for (const { l, sx } of legs) l.position.x = sx * (w / 2 - 0.15) })
       const logs = kits.nature; const lg = [['nat/log_stack', -8, -2, 5.2], ['nat/log', 8, 1.5, 5], ['nat/log_large', 8.5, -3, 5]]
       for (const [n, x, z, s] of lg) { const m = logs.get(n); if (m) for (const im of instanceModel(m, [{ x: 0, y: 0, z: 0, ry: 0.6, s }], { material: (pt) => plainMat(pt) })) { im.position.set(x, 0, z); g.add(im) } }
@@ -206,7 +226,7 @@ export function createLandmarks({ scene, addStatic, tickers, camObs, isMobile, k
       ]
       screens.forEach((d, i) => { const s = plate(2.9, 1.9, 512, 336, d, { mat: { toneMapped: false } }); s.position.set(-3.6 + i * 3.6, 2.5, 0.03 - 0.2); g.add(s) })
       g.add(box(11.6, 0.16, 2.2, lam(0x8d949f), 0, 1.2, 1.4)); g.add(box(0.2, 1.2, 0.2, lam(0x666c77), -5, 0.6, 1.9)); g.add(box(0.2, 1.2, 0.2, lam(0x666c77), 5, 0.6, 1.9))
-      const gear = new THREE.Group(); gear.add(new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.2, 0.35, 16), glow(PINK, 1.6))); for (let i = 0; i < 10; i++) { const t2 = box(0.45, 0.35, 0.6, glow(PINK, 1.6), Math.cos((i / 10) * TAU) * 1.45, 0, Math.sin((i / 10) * TAU) * 1.45); t2.rotation.y = -(i / 10) * TAU; gear.add(t2) }
+      const gear = anim(new THREE.Group()); gear.add(new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.2, 0.35, 16), glow(PINK, 1.6))); for (let i = 0; i < 10; i++) { const t2 = box(0.45, 0.35, 0.6, glow(PINK, 1.6), Math.cos((i / 10) * TAU) * 1.45, 0, Math.sin((i / 10) * TAU) * 1.45); t2.rotation.y = -(i / 10) * TAU; gear.add(t2) }
       gear.rotation.x = Math.PI / 2; gear.position.set(0, 6.4, -2.8); g.add(gear); tickers.push((t) => { gear.rotation.z = t * 0.6 })
       addStatic(p.side * SET_X, p.pos[1] - 2, 5.8)
     },
@@ -303,7 +323,7 @@ export function createLandmarks({ scene, addStatic, tickers, camObs, isMobile, k
     }, { mat: { toneMapped: false } })
     scr.position.set(0, 2.4, 0.32); k.add(scr)
     addStatic(cx, cz, 4.4); addStatic(cx - 9, cz, 2.6)
-    view('contact', [cx - 26, 9, cz + 16], [cx, 12, cz])
+    view('contact', [cx - 27, 6.5, cz + 5], [cx - 6, 8, cz])
   }
 
   /* ------------------------------------------------------------------ project district */
@@ -311,12 +331,12 @@ export function createLandmarks({ scene, addStatic, tickers, camObs, isMobile, k
     gantry(0, 40, 0, 12, 'Project District', 'What I have built')
     for (const p of projects) {
       board(p); setBuilders[p.id]?.(p)
-      view(p.id, [-p.side * 6, 17, p.pos[1] - 24], [p.side * SET_X, 3.6, p.pos[1] + 1])
+      view(p.id, [-p.side * 6, 16, p.pos[1] - Math.max(14, Math.min(24, p.pos[1] - 44))], [p.side * SET_X, 3.6, p.pos[1] + 1]) // the first project sits close behind the district gantry, so its camera moves in past the beam
     }
   }
 
   return {
-    buildAll() { buildArrival(); buildAbout(); buildExperience(); buildProjects(); buildLab(); buildContact() },
+    buildAll() { buildArrival(); buildAbout(); buildExperience(); buildProjects(); buildLab(); buildContact(); roots.forEach(mergeStatic) },
     /** Per frame: animate the board of the active project and drive the lab exhibits. */
     update(t, dt, car, activeId) {
       for (const [id, lv] of live) { const on = id === activeId; if (on) { if (t - lv.last > (isMobile ? 1 / 12 : 1 / 24)) { lv.render(t); lv.last = t; lv.on = true } } else if (lv.on) { lv.render(0); lv.on = false } }

@@ -144,7 +144,7 @@ const car = { pos: new THREE.Vector3(0, 0, 28), y: 0.14, vy: 0, vyG: 0, air: fal
     const tail = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.11, 0.06), glow(0xff1030, 4)); tail.position.set(s * 0.48, 0.55, 1.36); b.add(tail)
   }
   const wing = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.05, 0.4), glow(VIOLET, 2)); wing.position.set(0, 1.05, 1.25); b.add(wing)
-  const roof = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.9), basic(canvasTex(128, 128, (x, w, h) => { x.fillStyle = '#ff2d8a'; x.font = `500 70px ${F_SANS}`; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText('IM', w / 2, h / 2 + 4) }))); roof.rotation.x = -Math.PI / 2; roof.position.set(0, 1.1, 0.15); b.add(roof)
+  const roof = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.9), basic(canvasTex(128, 128, (x, w, h) => { x.fillStyle = '#ffb562'; x.font = `500 70px ${F_SANS}`; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText('IM', w / 2, h / 2 + 4) }))); roof.rotation.x = -Math.PI / 2; roof.position.set(0, 1.1, 0.15); b.add(roof)
   const wg = new THREE.CylinderGeometry(0.4, 0.4, 0.34, 18), wm = dark(0x08080c, 0.6, 0.2)
   for (const [x, z] of [[-0.88, -0.92], [0.88, -0.92], [-0.88, 0.95], [0.88, 0.95]]) {
     const w = new THREE.Group(); const m = new THREE.Mesh(wg, wm); m.rotation.z = Math.PI / 2; w.add(m)
@@ -154,7 +154,7 @@ const car = { pos: new THREE.Vector3(0, 0, 28), y: 0.14, vy: 0, vyG: 0, air: fal
   const light = new THREE.PointLight(PINK, 5, 14, 1.8); light.position.set(0, 0.3, 0); car.group.add(light)
   car.group.rotation.order = 'YXZ'; car.procedural = [...b.children]; car.group.add(b); scene.add(car.group)
 }
-const pool = new THREE.Mesh(new THREE.PlaneGeometry(9, 9), basic(canvasTex(128, 128, (x, w) => { const g = x.createRadialGradient(64, 64, 0, 64, 64, 64); g.addColorStop(0, 'rgba(255,45,138,.55)'); g.addColorStop(1, 'rgba(255,45,138,0)'); x.fillStyle = g; x.fillRect(0, 0, w, w) }), { blending: THREE.AdditiveBlending, depthWrite: false }))
+const pool = new THREE.Mesh(new THREE.PlaneGeometry(9, 9), basic(canvasTex(128, 128, (x, w) => { const g = x.createRadialGradient(64, 64, 0, 64, 64, 64); g.addColorStop(0, 'rgba(255,181,98,.42)'); g.addColorStop(1, 'rgba(255,181,98,0)'); x.fillStyle = g; x.fillRect(0, 0, w, w) }), { blending: THREE.AdditiveBlending, depthWrite: false }))
 pool.rotation.x = -Math.PI / 2; pool.position.y = 0.04; scene.add(pool); car.pool = pool
 const trailL = new Trail(scene, { max: isMobile ? 40 : 64 }), trailR = new Trail(scene, { max: isMobile ? 40 : 64 })
 let secret = false
@@ -367,7 +367,6 @@ function enterZone(z) {
   if (isLocation(z)) {
     journey.arrive(z.id)
     if (journey.discover(z.id)) discovered(z)
-    if (tour.on && !chapter.isOpen) openChapter(z, { auto: true })
   }
 }
 function interact() {
@@ -534,7 +533,9 @@ function pollPad() {
   if (padS.y && !padPrev.y && started) { tour.on ? cancelTour() : startTour() }
   padPrev = padS
 }
-function autopilot(dt) {
+let dtRealNow = 0.016 // wall-clock frame time: tour timers must not stretch while a chapter slows the world
+function autopilot() {
+  const dt = dtRealNow
   const w = TOUR[tour.i]
   if (!w) { track('tour_complete'); cancelTour('That was the tour — take the wheel and explore ✦'); return IDLE }
   if (tour.wait > 0) { tour.wait -= dt; if (tour.wait <= 0) { tour.i++; paintTour(); if (chapter?.isOpen && chapterAuto) chapter.close() } return { f: car.speed > 1.5 ? -0.6 : 0, t: 0, boost: false, drift: false } }
@@ -545,7 +546,7 @@ function autopilot(dt) {
   if (tour.lastI !== tour.i) { tour.lastI = tour.i; tour.bestD = 1e9; tour.noProg = 0 }
   if (d < tour.bestD - 0.4) { tour.bestD = d; tour.noProg = 0 } else if (tour.wait <= 0) tour.noProg += dt
   if (tour.noProg > 4) { tour.noProg = 0; tour.rev = 1.1; tour.i++; paintTour(); return IDLE }
-  if (d < (w.dwell ? 4 : 6.5)) { if (w.dwell) tour.wait = w.dwell; else { tour.i++; paintTour() } tour.stuck = 0; return IDLE }
+  if (d < (w.dwell ? 4 : 6.5)) { if (w.dwell) { tour.wait = w.dwell; const L = w.loc && byId(w.loc); if (L && isLocation(L) && !chapter.isOpen) openChapter(L, { auto: true }) } else { tour.i++; paintTour() } tour.stuck = 0; return IDLE }
   tour.stuck = Math.abs(car.speed) < 0.6 ? tour.stuck + dt : 0
   if (tour.stuck > 3) { tour.i++; tour.stuck = 0; paintTour() }
   // slow down for the corner after this waypoint
@@ -611,12 +612,12 @@ function updateCar(dt, t) {
     car.pos.x = hitOut.x; car.pos.z = hitOut.z
     const vn = car.vel.x * hitOut.nx + car.vel.y * hitOut.nz
     car.wallT = 0.3
-    if (vn < 0) { car.vel.x -= hitOut.nx * vn * 1.25; car.vel.y -= hitOut.nz * vn * 1.25; if (vn < -5) { audio.thud(); buzz(28); shake = Math.min(0.5, -vn * 0.03); sparks.burst(car.pos.x - hitOut.nx * 1.2, car.y + 0.6, car.pos.z - hitOut.nz * 1.2, 0xffd0e4, 16, 7); if (vn < -9) score.lose() } }
+    if (vn < 0) { car.vel.x -= hitOut.nx * vn * 1.25; car.vel.y -= hitOut.nz * vn * 1.25; if (vn < -5) { audio.thud(); buzz(28); shake = Math.min(0.5, -vn * 0.03); sparks.burst(car.pos.x - hitOut.nx * 1.2, car.y + 0.6, car.pos.z - hitOut.nz * 1.2, 0xffe2b8, 16, 7); if (vn < -9) score.lose() } }
   }
   // ramps / plateaus: a step that is too tall is a wall — slide along it instead of driving through
   if (blockedAt(car.pos.x, car.pos.z)) {
     if (!blockedAt(car.pos.x, pz)) { car.pos.z = pz; car.vel.y *= -0.2 } else if (!blockedAt(px, car.pos.z)) { car.pos.x = px; car.vel.x *= -0.2 } else { car.pos.x = px; car.pos.z = pz; car.vel.multiplyScalar(-0.2) }
-    if (Math.abs(car.speed) > 8) { audio.thud(); shake = 0.3; sparks.burst(car.pos.x + fx * 1.4, car.y + 0.5, car.pos.z + fz * 1.4, 0xffd0e4, 12, 6) }
+    if (Math.abs(car.speed) > 8) { audio.thud(); shake = 0.3; sparks.burst(car.pos.x + fx * 1.4, car.y + 0.5, car.pos.z + fz * 1.4, 0xffe2b8, 12, 6) }
   }
   // vertical: glued to the height field, or ballistic once the ground falls away (ramp lip, plateau edge)
   const gy = city.heightAt(car.pos.x, car.pos.z)
@@ -702,7 +703,7 @@ function landCar(gy) {
     if (impact > 13) { car.vel.multiplyScalar(0.8); shake = Math.max(shake, 0.25) }
   } else if (trick) {
     car.vel.multiplyScalar(0.45); shake = 0.55; audio.thud(); score.lose(); toast('Sloppy landing', 1200)
-    sparks.burst(car.pos.x, car.y + 0.4, car.pos.z, 0xffd0e4, 24, 9)
+    sparks.burst(car.pos.x, car.y + 0.4, car.pos.z, 0xffe2b8, 24, 9)
   }
   if (impact > 8) { audio.thud(); buzz(24); sparks.burst(car.pos.x, car.y + 0.2, car.pos.z, 0xffe0a0, 14, 7); shake = Math.max(shake, Math.min(0.4, impact * 0.02)) }
 }
@@ -868,6 +869,7 @@ const carView = { x: 0, z: 0, y: 0, vx: 0, vz: 0 }
 let lastOverlay = false
 function tick() {
   const dtReal = Math.min(clock.getDelta(), 0.05), t = clock.elapsedTime
+  dtRealNow = dtReal
   frame++
   fpsAcc += dtReal; fpsN++
   if (fpsAcc > 0.5) { fpsShow = fpsN / fpsAcc; fpsAcc = 0; fpsN = 0 }
@@ -975,7 +977,7 @@ function takePhoto() {
     if (!blob) return
     const file = new File([blob], `iman-portfolio-${Date.now()}.png`, { type: 'image/png' })
     track('photo')
-    if (isMobile && navigator.canShare?.({ files: [file] })) { try { await navigator.share({ files: [file], title: 'Drive my portfolio', url: location.origin }); return } catch (_) { /* cancelled → fall through to download */ } }
+    if (isMobile && navigator.canShare?.({ files: [file] })) { try { await navigator.share({ files: [file], title: 'Iman Mohammadi — Interactive 3D Portfolio', url: location.origin }); return } catch (_) { /* cancelled → fall through to download */ } }
     const a = document.createElement('a'); a.href = URL.createObjectURL(file); a.download = file.name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000)
     toast('Photo saved', 1800)
   }, 'image/png')

@@ -20,7 +20,7 @@ export const DISTRICTS = [
   { id: 'experience', name: 'Experience District', blurb: 'Where I have worked', shape: ['rect', 52, -30, 198, 30] },
   { id: 'projects', name: 'Project District', blurb: 'What I have built', shape: ['rect', -42, 34, 42, 198] },
   { id: 'lab', name: '3D Lab', blurb: 'Experiments in WebGL', shape: ['rect', -102, 42, -42, 102] },
-  { id: 'contact', name: 'Communication Terminal', blurb: 'Get in touch', shape: ['rect', 42, 42, 102, 102] },
+  { id: 'contact', name: 'Communication Terminal', short: 'Contact', blurb: 'Get in touch', shape: ['rect', 42, 42, 102, 102] },
   { id: 'play', name: 'Stunt Park', blurb: 'Optional — just for fun', shape: ['rect', -198, -50, -50, 50] },
 ]
 export const CITY_NAME = "Iman's Digital City"

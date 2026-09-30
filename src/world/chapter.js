@@ -34,13 +34,14 @@ export function locationHTML(loc, { index = 0, count = 0, next = null, mode = 'c
 }
 
 /** Chapter overlay controller. */
+const X = '<button class="ch__x" type="button" data-close aria-label="Close"><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="1.4" fill="none"/></svg></button>' // sticky corner close, shown on phones where the footer scrolls out of view
 export function createChapter({ root, card, onOpen, onClose, onNext, onEvent }) {
   let open = false, current = null, lastFocus = null
-  const focusables = () => [...card.querySelectorAll('a[href],button:not([disabled])')]
+  const focusables = () => [...card.querySelectorAll('a[href],button:not([disabled])')].filter((el) => el.offsetParent !== null) // the corner close is display:none on desktop
 
   function show(loc, ctx = {}) {
     current = loc; lastFocus = document.activeElement
-    card.innerHTML = locationHTML(loc, ctx)
+    card.innerHTML = X + locationHTML(loc, ctx)
     root.hidden = false
     // next frame so the transitions run
     requestAnimationFrame(() => requestAnimationFrame(() => root.classList.add('is-on')))
@@ -72,7 +73,7 @@ export function createChapter({ root, card, onOpen, onClose, onNext, onEvent }) 
   function showCustom(html) {
     if (open) return
     current = { id: 'custom', custom: true }; lastFocus = document.activeElement
-    card.innerHTML = `<div class="rv" style="--i:0">${html}</div><footer class="ch__foot rv" style="--i:2"><span></span><button class="ch__close mono" type="button" data-close>Close <kbd>Esc</kbd></button></footer>`
+    card.innerHTML = `${X}<div class="rv" style="--i:0">${html}</div><footer class="ch__foot rv" style="--i:2"><span></span><button class="ch__close mono" type="button" data-close>Close <kbd>Esc</kbd></button></footer>`
     root.hidden = false; requestAnimationFrame(() => requestAnimationFrame(() => root.classList.add('is-on'))); open = true; card.scrollTop = 0
     setTimeout(() => card.focus({ preventScroll: true }), 60)
   }

@@ -15,13 +15,13 @@
   <meta property="og:image" content="https://iman-mhmdi.ir/og.jpg" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
-  <meta property="og:image:alt" content="A 3D city at dusk with a Lamborghini and the title Drive my portfolio" />
+  <meta property="og:image:alt" content="Iman Mohammadi, Senior Full-Stack &amp; 3D Web Engineer: an interactive portfolio set in a 3D city at dusk" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="Iman Mohammadi — Interactive 3D Portfolio" />
   <meta name="twitter:description" content="Explore Iman Mohammadi's digital city: experience, projects and a 3D lab — or skip straight to the portfolio." />
   <meta name="twitter:image" content="https://iman-mhmdi.ir/og.jpg" />
   <meta name="author" content="Iman Mohammadi" />
-  <script type="application/ld+json">{"@context": "https://schema.org", "@type": "Person", "name": "Iman Mohammadi", "jobTitle": "Senior Front-End Architect", "description": "Senior front-end and full-stack developer specialising in Vue, Nuxt, Next.js, Three.js and WebGL.", "url": "https://iman-mhmdi.ir", "email": "mailto:im.enzo.021@gmail.com", "address": {"@type": "PostalAddress", "addressLocality": "Tehran", "addressCountry": "IR"}, "sameAs": ["https://github.com/iman-mohamadi", "https://t.me/iEnzO", "https://instagram.com/im_mhmdi"], "knowsAbout": ["Vue.js", "Nuxt", "Next.js", "React", "Three.js", "WebGL", "GLSL", "GSAP", "TypeScript", "Tailwind CSS"]}</script>
+  <script type="application/ld+json">{"@context": "https://schema.org", "@type": "Person", "name": "Iman Mohammadi", "jobTitle": "Senior Full-Stack & 3D Web Engineer", "description": "Senior front-end and full-stack developer specialising in Vue, Nuxt, Next.js, Three.js and WebGL.", "url": "https://iman-mhmdi.ir", "email": "mailto:im.enzo.021@gmail.com", "address": {"@type": "PostalAddress", "addressLocality": "Tehran", "addressCountry": "IR"}, "sameAs": ["https://github.com/iman-mohamadi", "https://t.me/iEnzO", "https://instagram.com/im_mhmdi"], "knowsAbout": ["Vue.js", "Nuxt", "Next.js", "React", "Three.js", "WebGL", "GLSL", "GSAP", "TypeScript", "Tailwind CSS"]}</script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@200;300;400;500&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@300;400&display=swap" rel="stylesheet" />
@@ -56,7 +56,7 @@
   <div class="hud" id="hud" role="region" aria-label="Portfolio HUD">
     <section class="where" aria-label="Where you are">
       <p class="where__district mono"><svg class="pin" viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><path d="M8 1.2a4.6 4.6 0 0 0-4.6 4.6C3.4 9.4 8 14.8 8 14.8s4.6-5.4 4.6-9A4.6 4.6 0 0 0 8 1.2Zm0 6.4a1.8 1.8 0 1 1 0-3.6 1.8 1.8 0 0 1 0 3.6Z" fill="currentColor"/></svg><span id="whereDistrict">Iman’s Digital City</span></p>
-      <h2 class="where__name" id="whereName"></h2>
+      <div class="where__name" id="whereName"></div>
       <button class="objective" id="objective" type="button" aria-label="Current objective: show me the way">
         <span class="objective__label mono">Current objective</span>
         <span class="objective__title" id="objTitle">—</span>
@@ -79,7 +79,7 @@
   </div>
   <div class="navarrow mono" id="navArrow" aria-hidden="true"><svg viewBox="0 0 40 40" width="34" height="34"><path d="M20 4 L34 32 L20 25 L6 32 Z" fill="currentColor"/></svg><span id="navDist"></span></div>
 
-  <div class="discover" id="discover" aria-live="polite"><i aria-hidden="true"></i><p class="mono">Location discovered</p><h3 id="discoverName"></h3><p class="mono" id="discoverCount"></p></div>
+  <div class="discover" id="discover" aria-live="polite"><i aria-hidden="true"></i><p class="mono">Location discovered</p><div class="discover__name" id="discoverName"></div><p class="mono" id="discoverCount"></p></div>
   <div class="intro" id="intro" aria-live="polite"><p id="introLine"></p></div>
 
   <!-- A location, presented as a chapter -->

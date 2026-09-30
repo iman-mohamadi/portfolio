@@ -32,7 +32,13 @@ export function createMapRenderer({ city, districts, locations, games }) {
       if (d.shape[0] !== 'rect' || d.id === 'play') continue
       const [, x0, z0, x1, z1] = d.shape
       x.strokeRect(x0 * k, z0 * k, (x1 - x0) * k, (z1 - z0) * k)
-      if (labels) { x.fillStyle = `rgba(${ACCENT},.85)`; x.fillText(d.name.replace(' District', '').toUpperCase(), x0 * k + 4, z0 * k + 4) }
+      if (labels) { // the experience gates are labelled along the top of the band, so its own name sits on the bottom edge
+        const low = d.id === 'experience'
+        x.fillStyle = `rgba(${ACCENT},.85)`; x.textBaseline = low ? 'bottom' : 'top'
+        const east = x0 > 0 // eastern districts anchor to their far edge so they clear the project labels on the avenue
+        x.textAlign = east ? 'right' : 'left'
+        x.fillText((d.short || d.name.replace(' District', '')).toUpperCase(), east ? x1 * k - 4 : x0 * k + 4, low ? z1 * k - 4 : z0 * k + 4)
+      }
     }
     x.setLineDash([])
     return c
