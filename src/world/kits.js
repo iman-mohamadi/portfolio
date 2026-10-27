@@ -65,6 +65,11 @@ export function dynamicInstances(model, count, { material } = {}) {
       e.set(rx, ry, rz); q.setFromEuler(e); p.set(x, y, z); sc.set(s, s, s); m.compose(p, q, sc)
       meshes.forEach((im, k) => { c.multiplyMatrices(m, model.parts[k].matrix); im.setMatrixAt(i, c) })
     },
+    /** same as set(), from a quaternion (rigid-body props) */
+    setQ(i, x, y, z, quat, s = 1) {
+      p.set(x, y, z); sc.set(s, s, s); m.compose(p, quat, sc)
+      meshes.forEach((im, k) => { c.multiplyMatrices(m, model.parts[k].matrix); im.setMatrixAt(i, c) })
+    },
     use(n) { meshes.forEach((im) => (im.count = n)) },
     commit() { meshes.forEach((im) => (im.instanceMatrix.needsUpdate = true)) },
   }

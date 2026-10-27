@@ -5,7 +5,7 @@ export const clamp = (v, a, b) => Math.min(b, Math.max(a, v))
 export const lerp = (a, b, t) => a + (b - a) * t
 export const damp = (dt, k) => 1 - Math.exp(-k * dt)
 /** One warm accent + one cool secondary. (Named PINK / VIOLET for history; the palette is now amber and pale blue.) */
-export const ACCENT = 0xffb562, COOL = 0x9db8ff
+export const ACCENT = 0xffcf24, COOL = 0x9db8ff
 export const PINK = ACCENT, VIOLET = COOL
 export const F_SANS = "'Inter Tight', sans-serif", F_SERIF = "'Instrument Serif', serif", F_MONO = "'JetBrains Mono', monospace"
 export function canvasTex(w, h, draw) {
@@ -20,7 +20,7 @@ export const dark = (c = 0x101018, r = 0.45, m = 0.5) => new THREE.MeshStandardM
 export function sprite(text, { size = 3, color = '#f2efec', font = `300 120px ${F_SANS}`, accent } = {}) {
   const tex = canvasTex(1024, 256, (x, w, h) => {
     x.font = font; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillStyle = color
-    x.shadowColor = accent || '#ffb562'; x.shadowBlur = 18; x.fillText(text, w / 2, h / 2)
+    x.shadowColor = accent || '#ffcf24'; x.shadowBlur = 18; x.fillText(text, w / 2, h / 2)
   })
   const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, toneMapped: false, depthWrite: false }))
   s.scale.set(size * 4, size, 1)

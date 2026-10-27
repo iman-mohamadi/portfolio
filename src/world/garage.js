@@ -1,25 +1,25 @@
 import * as THREE from 'three'
 
 /**
- * Garage: the hero Lamborghini plus a handful of Kenney (CC0) cars you can buy with stunt/race/delivery cash.
+ * Garage: the hero Neon GT plus a handful of Kenney (CC0) cars you can buy with stunt/race/delivery cash.
  * Each car changes the handling constants the physics reads from `car.stats`.
  */
 export const CARS = [
-  { id: 'lambo', name: 'Terzo Millennio', kit: null, price: 0, acc: 30, max: 27, grip: 7.5, turn: 2.15, r: 1.5, rear: 1.65, track: 0.8, blurb: 'The hero car — balanced, fast and gorgeous.' },
+  { id: 'gt', name: 'Neon GT', kit: 'car/race-future', scale: 1.95, price: 0, acc: 30, max: 27, grip: 7.5, turn: 2.15, r: 1.4, rear: 1.5, track: 0.7, blurb: 'The hero car — balanced, quick and happy to drift.' },
   { id: 'taxi', name: 'City Taxi', kit: 'car/taxi', scale: 1.75, price: 150, acc: 24, max: 22, grip: 6.5, turn: 2.0, r: 1.5, rear: 1.3, track: 0.8, blurb: 'Slow, tall and hilarious. Still gets you there.' },
   { id: 'hatch', name: 'Hot Hatch', kit: 'car/hatchback-sports', scale: 1.8, price: 300, acc: 28, max: 24.5, grip: 9.5, turn: 2.55, r: 1.4, rear: 1.3, track: 0.75, blurb: 'Pointy front end, huge grip. Corners like it is on rails.' },
   { id: 'kart', name: 'Street Kart', kit: 'car/kart-oobi', scale: 2.0, price: 450, acc: 33, max: 23, grip: 11, turn: 3.1, r: 1.15, rear: 1.05, track: 0.65, blurb: 'Tiny, twitchy and stuck to the road.' },
   { id: 'coupe', name: 'Street Coupe', kit: 'car/sedan-sports', scale: 1.8, price: 600, acc: 31, max: 26, grip: 8.2, turn: 2.3, r: 1.45, rear: 1.4, track: 0.8, blurb: 'Quick off the line with a big spoiler.' },
   { id: 'fire', name: 'Fire Truck', kit: 'car/firetruck', scale: 1.65, price: 900, acc: 22, max: 21, grip: 6, turn: 1.8, r: 1.75, rear: 1.7, track: 0.9, blurb: 'Heavy. Nothing on the road can stop you.' },
-  { id: 'formula', name: 'Formula', kit: 'car/race', scale: 1.9, price: 1500, acc: 34, max: 30, grip: 8.6, turn: 2.35, r: 1.4, rear: 1.5, track: 0.7, blurb: 'Open-wheel speed. Hold on.' },
-  { id: 'future', name: 'Future GT', kit: 'car/race-future', scale: 1.95, price: 2800, acc: 36, max: 32, grip: 9, turn: 2.45, r: 1.4, rear: 1.5, track: 0.7, blurb: 'The fastest thing in the city.' },
+  { id: 'formula', name: 'Formula', kit: 'car/race', scale: 1.9, price: 1800, acc: 36, max: 32, grip: 9, turn: 2.45, r: 1.4, rear: 1.5, track: 0.7, blurb: 'Open-wheel speed. The fastest thing in the city.' },
 ]
 export const carById = (id) => CARS.find((c) => c.id === id) || CARS[0]
 
 export function createGarage({ car, kits, plainMat, score, toast, audio, track, isMobile }) {
   const el = document.getElementById('garage'), list = document.getElementById('garageList')
-  let owned = new Set(['lambo']), current = 'lambo', preview = null, open = false
-  try { const o = JSON.parse(localStorage.getItem('im-cars') || '[]'); if (Array.isArray(o)) o.forEach((i) => owned.add(i)); const c = localStorage.getItem('im-car'); if (c && owned.has(c)) current = c } catch (_) { /* private mode */ }
+  const legacy = (id) => (id === 'lambo' ? 'gt' : id) // the old hero id → the new one (saved progress)
+  let owned = new Set(['gt']), current = 'gt', preview = null, open = false
+  try { const o = JSON.parse(localStorage.getItem('im-cars') || '[]'); if (Array.isArray(o)) o.map(legacy).filter((i) => CARS.some((c) => c.id === i)).forEach((i) => owned.add(i)); const c = legacy(localStorage.getItem('im-car')); if (c && owned.has(c)) current = c } catch (_) { /* private mode */ }
   const save = () => { try { localStorage.setItem('im-cars', JSON.stringify([...owned])); localStorage.setItem('im-car', current) } catch (_) { /* ignore */ } }
   const alts = new Map() // id → built THREE.Group (lazy)
 
@@ -53,13 +53,13 @@ export function createGarage({ car, kits, plainMat, score, toast, audio, track, 
     if (!def.kit) {
       car.hero?.traverse?.(() => {}); if (car.hero) car.hero.visible = true
       car.procedural.forEach((c) => (c.visible = !car.hero)); car.wheels.forEach((w) => (w.visible = !car.hero))
-      car.mw = car.heroWheels; car.aero = car.heroAero; car.pool.scale.setScalar(car.hero ? 1.25 : 1)
+      car.mw = car.heroWheels; car.aero = car.heroAero; car.pool.scale.setScalar(car.hero ? 1.25 : 1); car.heroScale = car.hero ? car.heroScale : 1
     } else {
       let g = alts.get(id); if (!g) { g = build(def); if (g) { alts.set(id, g); car.body.add(g) } }
-      if (!g) return apply('lambo')
+      if (!g) return apply('gt')
       if (car.hero) car.hero.visible = false
       car.procedural.forEach((c) => (c.visible = false)); car.wheels.forEach((w) => (w.visible = false))
-      g.visible = true; car.mw = g.userData.wheels; car.aero = null; car.pool.scale.setScalar(def.scale / 1.4)
+      g.visible = true; car.mw = g.userData.wheels; car.aero = null; car.heroScale = def.scale; car.pool.scale.setScalar(def.scale / 1.4)
     }
     car.carId = id
   }

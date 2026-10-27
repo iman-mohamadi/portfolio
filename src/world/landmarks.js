@@ -4,7 +4,7 @@ import { canvasTex, basic, glow, dark, F_SANS, F_SERIF, F_MONO, PINK, VIOLET, se
 import { instanceModel, dynamicInstances } from './kits.js'
 import { LOCATIONS, PROFILE, STATS, GATES, byId } from './portfolio.js'
 
-const INK = '#0a0c10', PAPER = '#f2efe8', ACC = '#ffb562', MUTE = 'rgba(242,239,232,.62)', LINE = 'rgba(242,239,232,.18)'
+const INK = '#0a0c10', PAPER = '#f2efe8', ACC = '#ffcf24', MUTE = 'rgba(242,239,232,.62)', LINE = 'rgba(242,239,232,.18)'
 const TAU = Math.PI * 2
 
 /**
@@ -222,7 +222,7 @@ export function createLandmarks({ scene, addStatic, tickers, camObs, isMobile, k
       const screens = [
         (x, w, h) => { x.fillStyle = '#0c0e12'; x.fillRect(0, 0, w, h); ['{', '  "tool": "json",', '  "fast": true,', '  "free": true', '}'].forEach((s, i) => text(x, s, 26, 60 + i * 52, { font: `300 34px ${F_MONO}`, color: i % 2 ? ACC : '#9db8ff' })) },
         (x, w, h) => { x.fillStyle = '#0c0e12'; x.fillRect(0, 0, w, h); ['$ npm run format', '✓ 3 files prettified', '✓ syntax highlighted', '$ share --link'].forEach((s, i) => text(x, s, 26, 60 + i * 56, { font: `300 32px ${F_MONO}`, color: i % 2 ? '#8fe3b1' : PAPER })) },
-        (x, w, h) => { x.fillStyle = '#0c0e12'; x.fillRect(0, 0, w, h); for (let i = 0; i < 6; i++) { x.fillStyle = i % 3 === 0 ? 'rgba(255,181,98,.28)' : 'rgba(157,184,255,.2)'; x.fillRect(20, 20 + i * 46, 60 + ((i * 97) % 300), 30) } },
+        (x, w, h) => { x.fillStyle = '#0c0e12'; x.fillRect(0, 0, w, h); for (let i = 0; i < 6; i++) { x.fillStyle = i % 3 === 0 ? 'rgba(255,207,36,.28)' : 'rgba(157,184,255,.2)'; x.fillRect(20, 20 + i * 46, 60 + ((i * 97) % 300), 30) } },
       ]
       screens.forEach((d, i) => { const s = plate(2.9, 1.9, 512, 336, d, { mat: { toneMapped: false } }); s.position.set(-3.6 + i * 3.6, 2.5, 0.03 - 0.2); g.add(s) })
       g.add(box(11.6, 0.16, 2.2, lam(0x8d949f), 0, 1.2, 1.4)); g.add(box(0.2, 1.2, 0.2, lam(0x666c77), -5, 0.6, 1.9)); g.add(box(0.2, 1.2, 0.2, lam(0x666c77), 5, 0.6, 1.9))

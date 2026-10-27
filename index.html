@@ -24,7 +24,7 @@
   <script type="application/ld+json">{"@context": "https://schema.org", "@type": "Person", "name": "Iman Mohammadi", "jobTitle": "Senior Full-Stack & 3D Web Engineer", "description": "Senior front-end and full-stack developer specialising in Vue, Nuxt, Next.js, Three.js and WebGL.", "url": "https://iman-mhmdi.ir", "email": "mailto:im.enzo.021@gmail.com", "address": {"@type": "PostalAddress", "addressLocality": "Tehran", "addressCountry": "IR"}, "sameAs": ["https://github.com/iman-mohamadi", "https://t.me/iEnzO", "https://instagram.com/im_mhmdi"], "knowsAbout": ["Vue.js", "Nuxt", "Next.js", "React", "Three.js", "WebGL", "GLSL", "GSAP", "TypeScript", "Tailwind CSS"]}</script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@200;300;400;500&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@300;400&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,62..125,100..900;1,62..125,100..900&family=Inter+Tight:wght@200;300;400;500&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet" />
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
   <link rel="manifest" href="/manifest.webmanifest" />
@@ -35,11 +35,11 @@
 
   <!-- Arrival: a quiet black screen while the city loads -->
   <div class="start" id="start" role="region" aria-label="Welcome">
+    <div class="start__lines" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
     <div class="start__inner">
-      <p class="start__eyebrow mono">Interactive portfolio</p>
-      <h1 class="start__name"><span>Iman</span> <em>Mohammadi</em></h1>
+      <div class="start__chips mono"><span class="chip chip--live">Tehran · Remote friendly</span><span class="chip"><b>9+</b> years</span><span class="chip">Vue · Three.js · WebGL</span></div>
+      <h1 class="start__name" aria-label="Iman Mohammadi"><span><b class="split">Iman</b></span><span><b class="split">Mohammadi</b></span></h1>
       <p class="start__role mono">Senior Full-Stack &amp; 3D Web Engineer</p>
-      <i class="start__rule" aria-hidden="true"></i>
       <p class="start__welcome">Welcome to my digital world.<br />Explore my work, experience and experiments.</p>
       <p class="start__warn mono" id="motionWarn" hidden>Your device asks for reduced motion — camera moves and effects are kept minimal.</p>
       <p class="start__warn mono" id="startWarn" hidden>No GPU detected — the 3D world may run slowly. The portfolio is also available without driving.</p>
@@ -49,7 +49,9 @@
       </div>
       <p class="start__alt mono"><button class="link" id="tourBtn" type="button" disabled>Prefer to sit back? Take the guided tour →</button></p>
     </div>
+    <div class="start__count" aria-hidden="true"><span id="loadBig">0</span><small>%</small></div>
     <div class="start__bar"><i id="loadBar"></i></div>
+    <div class="start__marq mono" aria-hidden="true"><div><i>Vue.js</i><i>Nuxt</i><i>Next.js</i><i>React</i><i>Three.js</i><i>WebGL</i><i>GLSL</i><i>GSAP</i><i>TypeScript</i><i>Tailwind CSS</i></div><div><i>Vue.js</i><i>Nuxt</i><i>Next.js</i><i>React</i><i>Three.js</i><i>WebGL</i><i>GLSL</i><i>GSAP</i><i>TypeScript</i><i>Tailwind CSS</i></div></div>
   </div>
 
   <!-- HUD -->
@@ -72,6 +74,7 @@
     </div>
     <canvas id="mini" width="440" height="440" aria-hidden="true"></canvas>
     <div class="prompt" id="prompt" aria-live="polite"><button class="prompt__btn" id="promptBtn" type="button"><kbd>E</kbd><span class="prompt__text mono" id="promptText"></span></button><span class="prompt__sub" id="promptSub"></span></div>
+    <span class="fps mono" id="fps" aria-hidden="true"><b id="fpsNum">--</b> fps</span>
     <div class="hud__speed mono" id="speed"><b id="spd">000</b><span>km/h</span><i class="energy" title="Boost energy"><em id="energy"></em></i></div>
     <div class="combo mono" id="combo" aria-hidden="true"><b id="comboPts">0</b><span id="comboLbl"></span><i><em id="comboBar"></em></i></div>
     <div class="tourchip mono" id="tourChip"></div>

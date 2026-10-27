@@ -42,9 +42,11 @@ The world (`landmarks.js`), HUD (`hud.js`), chapters (`chapter.js`), menu + map 
 
 ## How it is built
 
-- **Assets** — Kenney CC0 kits merged by `tools/build-kits.mjs` into four compressed GLBs (`public/models/kits/`, ≈2.7 MB total); the hero car is a separate GLB.
+- **Assets** — Kenney CC0 kits merged by `tools/build-kits.mjs` into four compressed GLBs (`public/models/kits/`, ≈2.7 MB total).
 - **Rendering** — everything is instanced and chunked for frustum/distance culling; dry materials are cheap Lambert with PBR "wet twins" swapped in during rain; the sky is baked to a small cubemap one face per frame; dynamic resolution scaling; phones never leave the cheap path.
-- **Physics** — arcade car on a spatial hash of circles/boxes plus an analytic height field for the ramps.
+- **Rig and props** — the hero car's wheels ride the simulated suspension travel and the tail lights flare under braking. Crates and cones are real Rapier dynamic bodies (they tumble, stack and sleep); wind turbines turn on the horizon (`scenery.js`).
+- **Surfaces** — `surfaces.js` generates a tileable grain / bump / puddle map at boot (no texture downloads) and patches it into the road, ground and pavement materials in world space: asphalt grain, normal bump and roughness breakup, puddles that grow in rain. Roads are PBR on desktop and cheap Lambert on phones. `SkidMarks` (in `fx.js`) lays persistent tyre ribbons on tarmac wherever a wheel slides, spins or locks.
+- **Physics** — Rapier (WASM) rigid-body car in `physics.js`: one dynamic chassis, four suspension raycasts (spring + damper), per-tyre drive and lateral grip inside a friction circle (power oversteer, handbrake drifts, weight transfer), ramp wedges and plateau boxes that match the height field, real colliders for every building, tree and lamp, and rotation-based air tricks. The old arcade model stays as a fallback: `?physics=arcade`, or automatically if the WASM chunk fails to load. Traffic, props and rivals are still arcade-driven and talk to the car through `car.pos` / `car.vel`.
 - **AI** — traffic and race rivals follow right-hand-lane waypoints with Bézier corners built from the city's intersection graph (`traffic.js`).
 
 ## Project layout
@@ -76,8 +78,7 @@ CI (`.github/workflows/ci.yml`) runs both on every push. `vercel.json` sets cach
 
 ## 3D model credits
 
-- City, car, nature and racing kits — [Kenney](https://kenney.nl/assets) — **CC0**, see `public/models/kits/LICENSE.txt`.
-- Hero car: *( FREE ) Lamborghini Terzo Millennio* by [SDC PERFORMANCE](https://sketchfab.com/3Duae) — [CC-BY-NC-4.0](https://creativecommons.org/licenses/by-nc/4.0/), via [Sketchfab](https://sketchfab.com/3d-models/free-lamborghini-terzo-millennio-7ad3dffa9d344c3c978eafcc220cb709). Non-commercial licence: swap it out (or get the author's permission) before using this site commercially.
+- City, car, nature and racing kits — [Kenney](https://kenney.nl/assets) — **CC0**, see `public/models/kits/LICENSE.txt`. The hero Neon GT is Kenney's `race-future` from the car kit, so every model on the site is CC0.
 
 ## License
 

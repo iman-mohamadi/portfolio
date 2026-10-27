@@ -1,3 +1,4 @@
+import { createSurfaces } from './surfaces.js'
 import * as THREE from 'three'
 import { instanceModel } from './kits.js'
 import { seeded } from './helpers.js'
@@ -108,6 +109,26 @@ export function createCity({ scene, kits, uniforms, mobile, seed = 42 }) {
   }
   const matFor = (part) => gameMat(part.material)
 
+  /* ---- PBR surfaces: asphalt grain / bump / roughness / rain puddles, projected from world space onto the kit's road pieces ---- */
+  const sf = createSurfaces({ mobile }); layout.surfaces = sf
+  const roadMats = [], roadCache = new Map()
+  function roadMat(src) {
+    if (roadCache.has(src)) return roadCache.get(src)
+    const opts = { map: src.map, color: src.color, transparent: src.transparent, side: src.side, alphaTest: src.alphaTest, depthWrite: !src.transparent }
+    if (src.map) src.map.anisotropy = mobile ? 2 : 8
+    const m = sf.patch(mobile ? new THREE.MeshLambertMaterial(opts) : new THREE.MeshStandardMaterial({ ...opts, roughness: 0.9, metalness: 0 }), { scale: 0.22, grain: 0.7, bump: 0.55, rough: 0.38 })
+    if (!mobile) roadMats.push(m)
+    roadCache.set(src, m); return m
+  }
+  const roadMatFor = (part) => roadMat(part.material)
+  let roadEnv = null
+  /** Rain: puddles appear on the tarmac and it starts to reflect the neon environment (called by the atmosphere every frame). */
+  layout.setRoadWet = (w, env) => {
+    sf.u.uSfWet.value = w
+    if (env && roadEnv !== env) { roadEnv = env; for (const m of roadMats) { m.envMap = env; m.needsUpdate = true } }
+    for (const m of roadMats) m.envMapIntensity = w * 1.25
+  }
+
   /* ---- stunt jumps: road tiles that are swapped for the kit's slant pieces (rising along local +x) ----
    * ry: 0 → rises toward +x · π → -x · -π/2 → +z · π/2 → -z.  Launch/landing pairs sit either side of an intersection. */
   const RAMP_KIT = { slant: ['road/road-slant', 0.27], high: ['road/road-slant-high', 0.52] }
@@ -144,7 +165,7 @@ export function createCity({ scene, kits, uniforms, mobile, seed = 42 }) {
   const bxy = (bx, bz, col, row) => [blockCenter(bx) + (col - 1) * T, blockCenter(bz) + (row - 1) * T]
   const blockRamp = (kind, bx, bz, col, row, ry) => { const [x, z] = bxy(bx, bz, col, row), [name, top] = RAMP_KIT[kind]; put('city', name, x, z, ry, T); slant(x, z, ry, top) }
   const plateau = (bx, bz, col, row, levels = 1) => {
-    const [x, z] = bxy(bx, bz, col, row); for (let k = 0; k < levels; k++) put('city', 'road/tile-high', x, z, 0, T, k * 0.25 * T); pieces.set(tkey(x, z), { flat: true, top: 0.25 * T * levels })
+    const [x, z] = bxy(bx, bz, col, row); for (let k = 0; k < levels; k++) put('city', 'road/tile-high', x, z, 0, T, k * 0.25 * T); pieces.set(tkey(x, z), { flat: true, x, z, top: 0.25 * T * levels })
     // flags on the corners so the plateaus read from across town
     for (const [dx, dz] of [[-5, -5], [5, -5], [-5, 5], [5, 5]]) put('racing', levels > 1 ? 'race/flagCheckers' : 'race/flagRed', x + dx, z + dz, rnd() * 6.28, 5, 0.25 * T * levels)
   }
@@ -157,6 +178,9 @@ export function createCity({ scene, kits, uniforms, mobile, seed = 42 }) {
     return Math.max(BASE, 0.24 + (p.top - 0.24) * u)
   }
   layout.BASE = BASE
+  /** Is this point on tarmac (roads, roundabout, ramps)? Tyre marks only appear there. */
+  layout.onRoad = (x, z) => { const i = Math.round(x / T + (G - 1) / 2), j = Math.round(z / T + (G - 1) / 2); return layout.roadTiles.has(i + ',' + j) || (Math.abs(i - 16) <= 1 && Math.abs(j - 16) <= 1) || jumpTiles.has(i + ',' + j) }
+  layout.pieces = pieces // ramps + plateaus: the rigid-body world builds real colliders from these
   layout.jumpTiles = jumpTiles
   // rings hang over the flight paths of the road jumps
   hoop(-144, 4.5, 0, 0); hoop(-96, 8.7, 0, 0); hoop(-96, 9.9, 12, 0)
@@ -272,7 +296,8 @@ export function createCity({ scene, kits, uniforms, mobile, seed = 42 }) {
     const [kitName, name] = key.split('|'), kit = kits[kitName], model = kit.get(name); if (!model) continue
     const chunks = new Map()
     for (const it of list) { const k = Math.floor(it.x / CH) + ',' + Math.floor(it.z / CH); let a = chunks.get(k); if (!a) chunks.set(k, (a = [])); a.push(it) }
-    for (const part of chunks.values()) for (const im of instanceModel(model, part, { material: matFor, frustumCulled: true })) {
+    const isRoad = kitName === 'city' && name.startsWith('road/') && !name.includes('tile-high')
+    for (const part of chunks.values()) for (const im of instanceModel(model, part, { material: isRoad ? roadMatFor : matFor, frustumCulled: true })) {
       group.add(im); stats.drawCalls++
       // distance cull: small props vanish first, buildings last (fog hides the swap)
       const tri = (im.geometry.index ? im.geometry.index.count : im.geometry.attributes.position.count) / 3
@@ -283,10 +308,10 @@ export function createCity({ scene, kits, uniforms, mobile, seed = 42 }) {
 
   /* ---- ground: lawn with a soft procedural speckle, huge so the horizon is never bare ---- */
   const gt = (() => { const c = document.createElement('canvas'); c.width = c.height = 256; const x = c.getContext('2d'); x.fillStyle = '#4f7d45'; x.fillRect(0, 0, 256, 256); const r = seeded(3); for (let i = 0; i < 2600; i++) { x.fillStyle = `rgba(${30 + r() * 40 | 0},${70 + r() * 60 | 0},${30 + r() * 30 | 0},${0.15 + r() * 0.3})`; x.fillRect(r() * 256, r() * 256, 2 + r() * 4, 2 + r() * 4) } const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(90, 90); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = mobile ? 1 : 2; return t })()
-  const ground = new THREE.Mesh(new THREE.PlaneGeometry(1400, 1400), new THREE.MeshLambertMaterial({ map: gt }))
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(1400, 1400), sf.patch(new THREE.MeshLambertMaterial({ map: gt }), { scale: 0.7, grain: 0.35, bump: 0.35, puddles: false }))
   ground.rotation.x = -Math.PI / 2; ground.position.y = -0.02; scene.add(ground)
   // pavement under every block so buildings sit on a plinth of concrete rather than raw lawn
-  const pave = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshLambertMaterial({ color: 0x8c8f98 }), 64)
+  const pave = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), sf.patch(new THREE.MeshLambertMaterial({ color: 0x8c8f98 }), { scale: 0.3, grain: 0.5, bump: 0.35, puddles: true }), 64)
   const dm = new THREE.Matrix4(), q = new THREE.Quaternion().setFromEuler(new THREE.Euler(-Math.PI / 2, 0, 0))
   layout.blocks.forEach((b, k) => { const s = b.type === 'P' ? 0 : 35.4; dm.compose(new THREE.Vector3(b.x, 0.03, b.z), q, new THREE.Vector3(s, s, 1)); pave.setMatrixAt(k, dm) })
   pave.frustumCulled = false; group.add(pave)

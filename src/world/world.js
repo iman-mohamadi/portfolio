@@ -8,7 +8,9 @@ import { createSky } from './sky.js'
 import { createAtmosphere } from './atmosphere.js'
 import { loadKits, dynamicInstances } from './kits.js'
 import { createCity, HALF, T, NAT, tileX, tileZ } from './city.js'
-import { createFxPass, Trail } from './fx.js'
+import { createFxPass, Trail, SkidMarks } from './fx.js'
+import { createPhysics } from './physics.js'
+import { createTurbines } from './scenery.js'
 import { createAudio } from './audio.js'
 import { initAnalytics, track } from './analytics.js'
 import { $, clamp, lerp, damp, PINK, VIOLET, F_SANS, F_SERIF, F_MONO, canvasTex, basic, glow, dark, sprite, seeded } from './helpers.js'
@@ -103,7 +105,7 @@ async function loadFonts() {
   if (!document.fonts) return
   try {
     await Promise.race([
-      Promise.all([`200 60px 'Inter Tight'`, `300 30px 'Inter Tight'`, `italic 400 60px 'Instrument Serif'`, `300 30px 'JetBrains Mono'`].map((f) => document.fonts.load(f))),
+      Promise.all([`200 60px 'Inter Tight'`, `300 30px 'Inter Tight'`, `italic 900 60px 'Archivo'`, `italic 700 30px 'Archivo'`, `italic 400 60px 'Instrument Serif'`,`300 30px 'JetBrains Mono'`].map((f) => document.fonts.load(f))),
       new Promise((r) => setTimeout(r, 4000)),
     ])
   } catch (_) { /* fall back to system fonts */ }
@@ -132,7 +134,7 @@ function gpuPoints({ N, radius, height, color, size, speed = 0.4, opacity = 0.6,
 const motes = gpuPoints({ N: isMobile ? 260 : 650, radius: 60, height: 16, color: 0xb9a8ff, size: 0.22, speed: 0.5 }) // follows the car
 
 /* ------------------------------------------------------------------ car */
-const car = { pos: new THREE.Vector3(0, 0, 28), y: 0.14, vy: 0, vyG: 0, air: false, airT: 0, peak: 0, spinP: 0, spinR: 0, baseP: 0, pitch: 0, viewY: 0.14, stats: { acc: 30, max: 27, grip: 7.5, turn: 2.15 }, hero: null, heroWheels: null, heroAero: null, procedural: [], pool: null, carId: 'lambo', ang: 0, vel: new THREE.Vector2(), radius: 1.25, rearOff: 1.3, track: 0.85, mw: null, aero: null, speed: 0, fwd: 0, turn: 0, drift: 0, boost: 0, energy: 1, padKick: 0, group: new THREE.Group(), body: new THREE.Group(), wheels: [] }
+const car = { pos: new THREE.Vector3(0, 0, 28), y: 0.14, vy: 0, vyG: 0, air: false, airT: 0, peak: 0, spinP: 0, spinR: 0, baseP: 0, pitch: 0, viewY: 0.14, stats: { acc: 30, max: 27, grip: 7.5, turn: 2.15 }, hero: null, heroWheels: null, heroAero: null, procedural: [], pool: null, carId: 'gt', ang: 0, vel: new THREE.Vector2(), radius: 1.25, rearOff: 1.3, track: 0.85, mw: null, aero: null, speed: 0, fwd: 0, turn: 0, drift: 0, boost: 0, energy: 1, padKick: 0, group: new THREE.Group(), body: new THREE.Group(), wheels: [], quat: null, vis: new THREE.Vector3() }
 {
   const b = car.body
   const hull = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.45, 2.7), dark(0x14141c, 0.35, 0.7)); hull.position.y = 0.45; b.add(hull)
@@ -144,7 +146,7 @@ const car = { pos: new THREE.Vector3(0, 0, 28), y: 0.14, vy: 0, vyG: 0, air: fal
     const tail = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.11, 0.06), glow(0xff1030, 4)); tail.position.set(s * 0.48, 0.55, 1.36); b.add(tail)
   }
   const wing = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.05, 0.4), glow(VIOLET, 2)); wing.position.set(0, 1.05, 1.25); b.add(wing)
-  const roof = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.9), basic(canvasTex(128, 128, (x, w, h) => { x.fillStyle = '#ffb562'; x.font = `500 70px ${F_SANS}`; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText('IM', w / 2, h / 2 + 4) }))); roof.rotation.x = -Math.PI / 2; roof.position.set(0, 1.1, 0.15); b.add(roof)
+  const roof = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.9), basic(canvasTex(128, 128, (x, w, h) => { x.fillStyle = '#ffcf24'; x.font = `500 70px ${F_SANS}`; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText('IM', w / 2, h / 2 + 4) }))); roof.rotation.x = -Math.PI / 2; roof.position.set(0, 1.1, 0.15); b.add(roof)
   const wg = new THREE.CylinderGeometry(0.4, 0.4, 0.34, 18), wm = dark(0x08080c, 0.6, 0.2)
   for (const [x, z] of [[-0.88, -0.92], [0.88, -0.92], [-0.88, 0.95], [0.88, 0.95]]) {
     const w = new THREE.Group(); const m = new THREE.Mesh(wg, wm); m.rotation.z = Math.PI / 2; w.add(m)
@@ -154,9 +156,10 @@ const car = { pos: new THREE.Vector3(0, 0, 28), y: 0.14, vy: 0, vyG: 0, air: fal
   const light = new THREE.PointLight(PINK, 5, 14, 1.8); light.position.set(0, 0.3, 0); car.group.add(light)
   car.group.rotation.order = 'YXZ'; car.procedural = [...b.children]; car.group.add(b); scene.add(car.group)
 }
-const pool = new THREE.Mesh(new THREE.PlaneGeometry(9, 9), basic(canvasTex(128, 128, (x, w) => { const g = x.createRadialGradient(64, 64, 0, 64, 64, 64); g.addColorStop(0, 'rgba(255,181,98,.42)'); g.addColorStop(1, 'rgba(255,181,98,0)'); x.fillStyle = g; x.fillRect(0, 0, w, w) }), { blending: THREE.AdditiveBlending, depthWrite: false }))
+const pool = new THREE.Mesh(new THREE.PlaneGeometry(9, 9), basic(canvasTex(128, 128, (x, w) => { const g = x.createRadialGradient(64, 64, 0, 64, 64, 64); g.addColorStop(0, 'rgba(255,207,36,.42)'); g.addColorStop(1, 'rgba(255,207,36,0)'); x.fillStyle = g; x.fillRect(0, 0, w, w) }), { blending: THREE.AdditiveBlending, depthWrite: false }))
 pool.rotation.x = -Math.PI / 2; pool.position.y = 0.04; scene.add(pool); car.pool = pool
 const trailL = new Trail(scene, { max: isMobile ? 40 : 64 }), trailR = new Trail(scene, { max: isMobile ? 40 : 64 })
+const skids = new SkidMarks(scene, { max: isMobile ? 700 : 1800 })
 let secret = false
 
 // boost pads: chevrons on the ground that point the way between zones
@@ -578,6 +581,7 @@ function updateCar(dt, t) {
   car.boost += ((wantBoost ? 1 : 0) - car.boost) * damp(dt, 6)
   car.energy = clamp(car.energy + (wantBoost ? -0.26 : 0.08) * dt, 0, 1)
   car.padKick = Math.max(0, car.padKick - dt * 1.5)
+  if (phys) return driveCarPhys(dt, t, inp)
   const air = car.air
   const fx = -Math.sin(car.ang), fz = -Math.cos(car.ang)
   const fwdSpeed = car.vel.x * fx + car.vel.y * fz
@@ -637,8 +641,13 @@ function updateCar(dt, t) {
     car.baseP += (clamp(Math.atan2(fH - bH, 3.6), -0.6, 0.6) - car.baseP) * damp(dt, 14)
   }
   car.pos.y = car.y; car.pitch = car.baseP + car.spinP
+  return finishCar(dt, t, inp, fx, fz, rx, rz, latSpeed, gy)
+}
+/** Shared by both physics paths: visuals, wheel spin, trails, drift smoke, scoring. */
+function finishCar(dt, t, inp, fx, fz, rx, rz, latSpeed, gy) {
+  const air = car.air
   // visuals
-  car.group.position.set(car.pos.x, car.y, car.pos.z); car.group.rotation.set(car.pitch, car.ang, car.spinR)
+  if (car.quat) { car.group.position.copy(car.vis); car.group.quaternion.copy(car.quat) } else { car.group.position.set(car.pos.x, car.y, car.pos.z); car.group.rotation.set(car.pitch, car.ang, car.spinR) }
   car.viewY += (car.y - car.viewY) * damp(dt, 2.6)
   car.body.rotation.z = lerp(car.body.rotation.z, car.turn * clamp(car.speed / 25, -1, 1) * 0.12, damp(dt, 8))
   car.body.rotation.x = lerp(car.body.rotation.x, -inp.f * 0.05, damp(dt, 6))
@@ -658,6 +667,7 @@ function updateCar(dt, t) {
     trailL.update(dt, tx + rx * car.track, tz + rz * car.track, rx, rz, hex, mv, w, secret ? 1 : 0, ty)
     trailR.update(dt, tx - rx * car.track, tz - rz * car.track, rx, rz, hex, mv, w, secret ? 1 : 0, ty)
   }
+  if (!phys) { const k = !air && Math.abs(latSpeed) > 4 && city.onRoad(car.pos.x, car.pos.z) ? clamp((Math.abs(latSpeed) - 3.5) / 7, 0.2, 1) : 0, tx2 = car.pos.x - fx * car.rearOff, tz2 = car.pos.z - fz * car.rearOff, yy = Math.max(city.BASE + 0.12, gy + 0.03); skids.update([{ id: 0, x: tx2 + rx * car.track, y: yy, z: tz2 + rz * car.track, k }, { id: 1, x: tx2 - rx * car.track, y: yy, z: tz2 - rz * car.track, k }]) }
   // sparks: drift smoke + boost flame
   const drifting = !air && Math.abs(latSpeed) > 4
   audio.skid(drifting && started ? clamp((Math.abs(latSpeed) - 3.5) / 9, 0.15, 1) : 0)
@@ -675,6 +685,73 @@ function updateCar(dt, t) {
     score.update(dt)
   }
   return latSpeed
+}
+
+/* hero car rig: wheels ride the suspension, tail lights answer the brakes */
+const tailMat = new THREE.SpriteMaterial({ map: canvasTex(64, 64, (x, w) => { const g = x.createRadialGradient(32, 32, 0, 32, 32, 32); g.addColorStop(0, 'rgba(255,60,50,1)'); g.addColorStop(0.35, 'rgba(255,40,30,.5)'); g.addColorStop(1, 'rgba(255,20,10,0)'); x.fillStyle = g; x.fillRect(0, 0, w, w) }), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, toneMapped: false })
+const tails = [-1, 1].map(() => { const s = new THREE.Sprite(tailMat.clone()); s.scale.setScalar(0.9); s.visible = false; car.body.add(s); return s })
+let brakeK = 0
+const _wp = new THREE.Vector3(), _box = new THREE.Box3()
+function animateHero(dt, inp) {
+  const sc = car.heroScale || 1
+  if (car.mw) for (const w of car.mw) {
+    if (w.pi === undefined) { // which physics wheel is this? (front/rear + left/right of the car)
+      w.y0 = w.g.position.y; w.dy = 0; _box.setFromObject(w.g).getCenter(_wp); _wp.sub(car.vis)
+      const side = _wp.x * Math.cos(car.ang) - _wp.z * Math.sin(car.ang) >= 0 ? 1 : 0 // dot with the car's right vector
+      w.pi = (w.front ? 0 : 2) + side
+    }
+    const pw = phys.wheels[w.pi], tgt = pw.ground ? clamp((pw.comp - phys.COMP0) / sc, -0.3 / sc, 0.2 / sc) : -0.17 / sc
+    w.dy += (tgt - w.dy) * damp(dt, 22); w.g.position.y = w.y0 + w.dy
+  }
+  // tail lights: dim glow, flaring when braking or reversing
+  const braking = (inp.f < 0 && car.speed > 1) || (inp.f === 0 && Math.abs(car.speed) > 1 && false)
+  brakeK += ((braking ? 1 : 0) - brakeK) * damp(dt, 16)
+  const z = car.rearOff + 0.15, x = Math.max(0.5, car.track * 0.72)
+  tails.forEach((s, i) => { s.visible = true; s.position.set((i ? 1 : -1) * x, 0.62, z); s.material.opacity = 0.35 + brakeK * 0.65; s.scale.setScalar(0.7 + brakeK * 0.8) })
+}
+/** Rigid-body path: Rapier integrates the chassis; `car` is kept in sync for traffic, modes, camera and scoring. */
+let phys = null
+const _fw = new THREE.Vector3(), _up = new THREE.Vector3(), _wl = new THREE.Vector3(), _iq = new THREE.Quaternion()
+function driveCarPhys(dt, t, inp) {
+  for (const q of pads) {
+    if (q.cd > 0) { q.cd -= dt; continue }
+    if ((car.pos.x - q.x) ** 2 + (car.pos.z - q.z) ** 2 < 6.8) {
+      q.cd = 1.4; car.vel.x += q.dx * 15; car.vel.y += q.dz * 15; car.energy = Math.min(1, car.energy + 0.4); car.padKick = 1
+      audio.blip(); buzz(15); sparks.burst(q.x, 0.4, q.z, 0x7ee0ff, 16, 8)
+    }
+  }
+  const res = phys.step(dt, inp, { boost: car.boost, turn: car.turn, wet: atmo?.wet ?? 0 })
+  const { p, r, lv } = res, ps = phys.state
+  if (!car.quat) car.quat = new THREE.Quaternion()
+  car.quat.set(r.x, r.y, r.z, r.w)
+  _fw.set(0, 0, -1).applyQuaternion(car.quat); _up.set(0, 1, 0).applyQuaternion(car.quat)
+  car.pos.x = p.x; car.pos.z = p.z; car.vel.set(lv.x, lv.z)
+  car.ang = Math.atan2(-_fw.x, -_fw.z)
+  const fx = -Math.sin(car.ang), fz = -Math.cos(car.ang), rx = -fz, rz = fx
+  car.speed = lv.x * fx + lv.z * fz
+  const latSpeed = lv.x * rx + lv.z * rz
+  car.vis.set(p.x - _up.x * phys.RIDE, p.y - _up.y * phys.RIDE, p.z - _up.z * phys.RIDE)
+  car.y = car.vis.y; car.pos.y = car.y; car.vy = lv.y
+  const gy = city.heightAt(car.pos.x, car.pos.z)
+  audio.engine(clamp(Math.abs(car.speed) / 30, 0, 1), car.air ? 0.2 : Math.abs(inp.f), car.boost)
+  // airtime + tricks: accumulate the real rotation about the car's own pitch / roll axes
+  if (res.airborne && !car.air) { car.air = true; car.airT = 0; car.spinP = car.spinR = 0; car.peak = car.y }
+  if (car.air) {
+    car.airT += dt; car.peak = Math.max(car.peak, car.y)
+    const av = phys.body.angvel(); _iq.copy(car.quat).invert(); _wl.set(av.x, av.y, av.z).applyQuaternion(_iq)
+    car.spinP += _wl.x * dt; car.spinR += _wl.z * dt
+    if (!res.airborne) { car.vy = ps.lastVy; landCar(car.y); car.y = car.vis.y }
+  }
+  // collisions reported by the solver
+  if (ps.impact > 4.5) {
+    let nx = ps.impactN.x, nz = ps.impactN.z; if (nx * lv.x + nz * lv.z > 0) { nx = -nx; nz = -nz } // point away from what we hit
+    const vn = ps.impact
+    audio.thud(); buzz(28); shake = Math.max(shake, Math.min(0.5, vn * 0.03)); sparks.burst(car.pos.x - nx * 1.2, car.y + 0.6, car.pos.z - nz * 1.2, 0xffe2b8, 16, 7); if (vn > 9) score.lose()
+  }
+  phys.publish(lv)
+  animateHero(dt, inp)
+  skids.update(phys.wheels.map((w, i) => ({ id: i, x: w.cx, y: Math.max(city.BASE + 0.12, city.heightAt(w.cx, w.cz) + 0.03), z: w.cz, k: w.ground && !car.air && city.onRoad(w.cx, w.cz) ? w.skid : 0 })))
+  return finishCar(dt, t, inp, fx, fz, rx, rz, latSpeed, gy)
 }
 function ringHit(r) {
   const fx = -Math.sin(car.ang), fz = -Math.cos(car.ang)
@@ -708,8 +785,30 @@ function landCar(gy) {
   if (impact > 8) { audio.thud(); buzz(24); sparks.burst(car.pos.x, car.y + 0.2, car.pos.z, 0xffe0a0, 14, 7); shake = Math.max(shake, Math.min(0.4, impact * 0.02)) }
 }
 const pOut = { x: 0, z: 0, nx: 0, nz: 0 }
+const _pq = new THREE.Quaternion(), _pc = new THREE.Vector3()
+/** Move the arcade crates and cones into the rigid-body world once it exists. */
+function adoptProps() {
+  for (const p of pushables) {
+    const model = p.di.model, s = p.s, cone = model.name.includes('cone')
+    const size = model.size.map((v) => v * s), center = model.min.map((m, i) => (m + model.size[i] / 2) * s)
+    p.body = phys.addProp({ x: p.x, z: p.z, ry: p.ry, shape: cone ? 'cone' : 'box', size, center, mass: cone ? 14 : 55 }); p.c = center
+    const t = p.body.body.translation(), r = p.body.body.rotation(); _pq.set(r.x, r.y, r.z, r.w); _pc.set(...center).applyQuaternion(_pq)
+    p.di.setQ(p.idx, t.x - _pc.x, t.y - _pc.y, t.z - _pc.z, _pq, s)
+  }
+  props.groups.forEach((g) => g.commit())
+}
 function updatePushables(dt) {
   for (const p of pushables) {
+    if (p.body) { // rigid body: just draw it where the solver put it, and cheer when the car throws it around
+      const b = p.body.body
+      if (!b.isSleeping()) {
+        const t = b.translation(), r = b.rotation(), v = b.linvel(); _pq.set(r.x, r.y, r.z, r.w); _pc.set(p.c[0], p.c[1], p.c[2]).applyQuaternion(_pq)
+        p.di.setQ(p.idx, t.x - _pc.x, t.y - _pc.y, t.z - _pc.z, _pq, p.s); p.x = t.x; p.z = t.z
+        if (p.hit) p.hit = Math.max(0, p.hit - dt)
+        else if (Math.hypot(v.x, v.z) > 4 && Math.hypot(t.x - car.pos.x, t.z - car.pos.z) < 4.4 && car.y < 2) { p.hit = 0.4; audio.thud(0.4); score.add('smash', 40); sparks.burst(t.x, 0.8, t.z, 0xffd27a, 5, 4) }
+      }
+      continue
+    }
     p.vx *= Math.exp(-1.5 * dt); p.vz *= Math.exp(-1.5 * dt)
     p.x += p.vx * dt; p.z += p.vz * dt
     const dx = p.x - car.pos.x, dz = p.z - car.pos.z, m = p.r + car.radius - 0.05, d = Math.hypot(dx, dz)
@@ -786,7 +885,7 @@ function avoidObstacles() {
   for (const o of camObs) { if (c.y > o.top) continue; const dx = c.x - o.x, dz = c.z - o.z, m = o.r + 0.9, d2 = dx * dx + dz * dz; if (d2 < m * m) { const d = Math.sqrt(d2) || 0.001; c.x = o.x + (dx / d) * m; c.z = o.z + (dz / d) * m } }
 }
 const camLook = new THREE.Vector3(), camDes = new THREE.Vector3(), tgt = new THREE.Vector3()
-let camSnap = true, menuAng = 0.6
+let camSnap = true, menuAng = 0.6, bank = 0
 const look = { yaw: 0, pitch: 0, drag: false, idle: 0, x: 0, y: 0, id: null } // drag to look around; eases back when let go
 const aerial = new THREE.Vector3(), aerialLook = new THREE.Vector3(0, 3, 6)
 /** Default hero shot for a location without a hand-placed view: arrive from the road side, a little above. */
@@ -835,6 +934,9 @@ function updateCamera(dt, t) {
   if (reduceMotion) shake = 0
   if (shake > 0) { shake -= dt; camera.position.x += (Math.random() - 0.5) * shake; camera.position.y += (Math.random() - 0.5) * shake }
   camera.lookAt(camLook)
+  // bank into corners: a small roll that eases in and out with the steering, scaled by speed
+  bank += ((reduceMotion || introT < 1 ? 0 : -car.turn * sn * 0.045) - bank) * damp(dt, 5)
+  if (Math.abs(bank) > 1e-4) camera.rotateZ(bank)
   const fov = 58 + port * 30 + (reduceMotion ? 2 : sn * 9 + car.boost * 8)
   if (Math.abs(camera.fov - fov) > 0.05) { camera.fov = lerp(camera.fov, fov, damp(dt, 4)); camera.updateProjectionMatrix() }
 }
@@ -864,7 +966,7 @@ function updateDRS(dt) {
   if (drs.below > 1.2 && drs.level < 3) { setRes(drs.level + 1); drs.below = 0; drs.lock = 15 }
   else if (drs.above > 6 && drs.level > 0 && drs.lock <= 0) { setRes(drs.level - 1); drs.above = 0; drs.lock = 25 }
 }
-const spdEl = $('#spd'), enEl = $('#energy'), boostEl = $('#boostBtn')
+const spdEl = $('#spd'), enEl = $('#energy'), boostEl = $('#boostBtn'), fpsEl = $('#fps'), fpsNum = $('#fpsNum')
 const carView = { x: 0, z: 0, y: 0, vx: 0, vz: 0 }
 let lastOverlay = false
 function tick() {
@@ -872,7 +974,7 @@ function tick() {
   dtRealNow = dtReal
   frame++
   fpsAcc += dtReal; fpsN++
-  if (fpsAcc > 0.5) { fpsShow = fpsN / fpsAcc; fpsAcc = 0; fpsN = 0 }
+  if (fpsAcc > 0.5) { fpsShow = fpsN / fpsAcc; fpsAcc = 0; fpsN = 0; fpsNum.textContent = Math.round(fpsShow); fpsEl.classList.toggle('is-low', fpsShow < 30) }
   renderer.info.reset(); pollPad(); updateDRS(dtReal)
   // while a chapter is open the world eases into slow motion (ambience keeps moving, the car glides to a stop)
   worldGoal = chapter?.isOpen || menu?.isOpen || garage?.isOpen ? 0.14 : 1
@@ -922,7 +1024,7 @@ addEventListener('resize', onResize)
 let modes = null, garage = null
 const arrowEl = $('#navArrow'), arrowSvg = arrowEl.querySelector('svg'), arrowDist = $('#navDist')
 function placeCar(x, z, ang) {
-  car.pos.set(x, 0, z); car.vel.set(0, 0); car.ang = ang; car.y = car.viewY = city.BASE; car.air = false; car.vy = car.vyG = car.spinP = car.spinR = 0; camSnap = true
+  phys?.teleport(x, z, ang); car.pos.set(x, 0, z); car.vel.set(0, 0); car.ang = ang; car.y = car.viewY = city.BASE; car.air = false; car.vy = car.vyG = car.spinP = car.spinR = 0; camSnap = true
   flashScreen()
 }
 const fmtT = (s) => `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStart(4, '0')}`
@@ -970,8 +1072,8 @@ function takePhoto() {
   const src = canvas, out = document.createElement('canvas'); out.width = src.width; out.height = src.height
   const c = out.getContext('2d'); c.drawImage(src, 0, 0)
   const s = out.height / 720, bh = 56 * s
-  c.fillStyle = 'rgba(7,9,12,.66)'; c.fillRect(0, out.height - bh, out.width, bh); c.fillStyle = '#ffb562'; c.fillRect(0, out.height - bh, out.width, 2 * s)
-  c.font = `300 ${17 * s}px ${F_MONO}`; c.textBaseline = 'middle'; c.fillStyle = '#f2efec'; c.fillText('IMAN MOHAMMADI — INTERACTIVE PORTFOLIO', 26 * s, out.height - bh / 2); c.textAlign = 'right'; c.fillStyle = '#ffb562'; c.fillText('iman-mhmdi.ir', out.width - 26 * s, out.height - bh / 2)
+  c.fillStyle = 'rgba(7,9,12,.66)'; c.fillRect(0, out.height - bh, out.width, bh); c.fillStyle = '#ffcf24'; c.fillRect(0, out.height - bh, out.width, 2 * s)
+  c.font = `300 ${17 * s}px ${F_MONO}`; c.textBaseline = 'middle'; c.fillStyle = '#f2efec'; c.fillText('IMAN MOHAMMADI — INTERACTIVE PORTFOLIO', 26 * s, out.height - bh / 2); c.textAlign = 'right'; c.fillStyle = '#ffcf24'; c.fillText('iman-mhmdi.ir', out.width - 26 * s, out.height - bh / 2)
   const f = $('#flash'); f.classList.remove('is-on'); void f.offsetWidth; f.classList.add('is-on')
   out.toBlob(async (blob) => {
     if (!blob) return
@@ -1002,7 +1104,8 @@ function showHint() {
 }
 $('#twoDBtn').addEventListener('click', () => p2d.show())
 const pctEl = $('#loadPct'), barEl = $('#loadBar'), btn = $('#startBtn')
-const setPct = (p) => { pctEl.textContent = Math.round(p); barEl.style.transform = `scaleX(${p / 100})` }
+const bigEl = $('#loadBig')
+const setPct = (p) => { pctEl.textContent = Math.round(p); bigEl.textContent = Math.round(p); barEl.style.transform = `scaleX(${p / 100})` }
 const QUAL = { auto: [0, 'Auto'], high: [0, 'High'], med: [1, 'Medium'], low: [3, 'Low'] }
 function applyQuality(mode, announce) {
   qMode = mode; try { localStorage.setItem('im-quality', mode) } catch (_) { /* ignore */ }
@@ -1045,7 +1148,7 @@ function applyModels(m) {
   if (m.car) {
     car.body.children.forEach((c) => (c.visible = false)); car.wheels.forEach((w) => (w.visible = false))
     dress(m.car.object, 1.25); car.body.add(m.car.object)
-    const sc = m.car.object.scale.x
+    const sc = m.car.object.scale.x; car.heroScale = sc
     car.radius = 1.5; car.rearOff = 1.65; car.track = 0.8
     if (m.car.wheels?.length) car.mw = m.car.wheels.map((w) => ({ g: w.group, front: w.front, r: w.radius * sc }))
     if (m.car.clips.length) {
@@ -1088,6 +1191,7 @@ async function boot() {
   grid.addCircle(0, 0, 4.8, { tag: 'island' }) // the roundabout island under the hologram
   envTex = neonEnv()
   landmarks = createLandmarks({ scene, addStatic, tickers, camObs, isMobile, kits, plainMat }); landmarks.buildAll()
+  { const turb = createTurbines({ scene, half: HALF, count: isMobile ? 5 : 9 }); tickers.push((t, dt) => turb.update(t, dt)) }
   spawnProps(city, kits); TOUR = buildTourRoute(city, LOCATIONS); mapRenderer = createMapRenderer({ city, districts: DISTRICTS, locations: LOCATIONS, games: GAMES }); guidance = createGuidance({ scene, city }); setPct(90)
   traffic = createTraffic({ scene, kits, city, count: isMobile ? 14 : 28, plainMat }); traffic.init(0, 28)
   debris = createDebris({ scene, kits, plainMat, perModel: isMobile ? 4 : 7 })
@@ -1114,9 +1218,13 @@ async function boot() {
   $('#promptBtn').addEventListener('click', interact)
   atmo = createAtmosphere({ scene, sky, hemi, sun: moon, bloom, renderer, uniforms, camera, isMobile, audio, city }); atmo.setEnv(envTex); atmo.update(0, 0); sky.bake(true)
   if (import.meta.env.DEV) { window.__city = city; window.__atmo = atmo; window.__kits = kits; window.__modes = modes; window.__garage = garage; window.__score = score; window.__journey = journey; window.__hud = hud; window.__menu = menu; window.__chapter = chapter; window.__openChapter = openChapter }
+  if (qs.get('physics') !== 'arcade') {
+    try { phys = await createPhysics({ grid, city, car, half: HALF, tile: T }); phys.syncStatics(); phys.teleport(car.pos.x, car.pos.z, car.ang); adoptProps() } catch (e) { console.warn('rigid-body physics unavailable, using arcade handling', e); phys = null }
+  }
   const models = await modelsP; applyModels(models); garage.init(); showCredits(models.credits); setPct(97)
   renderer.compile(scene, camera); atmo.warm(); composer.render(); setPct(100)
   ready = true
+  $('#start').classList.add('is-ready') // the live city shows through behind the title
   btn.disabled = false; $('#startLabel').textContent = 'Enter my world'
   btn.addEventListener('click', startGame)
   const tb = $('#tourBtn'); tb.disabled = false; tb.addEventListener('click', startTour)
@@ -1127,4 +1235,4 @@ async function boot() {
 renderer.setAnimationLoop(() => { clock.getDelta() }) // keep clock sane while loading
 boot()
 
-if (import.meta.env.DEV) window.__w = { renderer, scene, car, composer, camera, tour, get TOUR() { return TOUR }, skipIntro() { introT = 1; introCtl?.skip() }, get frame() { return frame } }
+if (import.meta.env.DEV) window.__w = { get phys() { return phys }, tick: () => tick(), skids, renderer, scene, car, composer, camera, tour, get TOUR() { return TOUR }, skipIntro() { introT = 1; introCtl?.skip() }, get frame() { return frame } }

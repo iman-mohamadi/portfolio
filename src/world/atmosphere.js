@@ -68,6 +68,7 @@ export function createAtmosphere({ scene, sky, hemi, sun, bloom, renderer, unifo
     wetOn = on
   }
   const setWet = (w) => {
+    city?.setRoadWet?.(PBR ? w : 0, envTex)
     const want = PBR && w > 0.03
     if (want !== wetOn) swapMaterials(want)
     if (want) for (const m of wetMats) { m.roughness = lerp(0.85, 0.32, w); m.envMapIntensity = w * 1.15 }

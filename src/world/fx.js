@@ -69,3 +69,40 @@ export class Trail {
     this.geo.attributes.position.needsUpdate = true; this.geo.attributes.color.needsUpdate = true
   }
 }
+
+/** Persistent tyre marks: a ring buffer of dark ribbon quads laid on the road under any wheel that is sliding or spinning. */
+export class SkidMarks {
+  constructor(scene, { max = 1800, hw = 0.17 } = {}) {
+    this.max = max; this.hw = hw; this.head = 0; this.n = 0; this.last = new Map()
+    this.pos = new Float32Array(max * 12); this.col = new Float32Array(max * 16)
+    for (let i = 0; i < max * 4; i++) { this.col[i * 4] = this.col[i * 4 + 1] = this.col[i * 4 + 2] = 0.015 }
+    const idx = new Uint32Array(max * 6); for (let q = 0; q < max; q++) { const a = q * 4; idx.set([a, a + 1, a + 2, a + 1, a + 3, a + 2], q * 6) }
+    const g = new THREE.BufferGeometry()
+    this.aPos = new THREE.BufferAttribute(this.pos, 3).setUsage(THREE.DynamicDrawUsage); this.aCol = new THREE.BufferAttribute(this.col, 4).setUsage(THREE.DynamicDrawUsage)
+    g.setAttribute('position', this.aPos); g.setAttribute('color', this.aCol); g.setIndex(new THREE.BufferAttribute(idx, 1))
+    this.mesh = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, side: THREE.DoubleSide, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3, toneMapped: false }))
+    this.mesh.frustumCulled = false; this.mesh.renderOrder = 1; scene.add(this.mesh)
+  }
+  /** wheels: [{ id, x, y, z, k }] — k is the 0..1 skid intensity (0 = lifts the pen). */
+  update(wheels) {
+    this.aPos.clearUpdateRanges(); this.aCol.clearUpdateRanges(); let wrote = false
+    for (const w of wheels) {
+      const l = this.last.get(w.id)
+      if (w.k < 0.06) { if (l) l.on = false; continue }
+      if (!l) { this.last.set(w.id, { x: w.x, y: w.y, z: w.z, nx: 0, nz: 0, a: w.k, on: true, fresh: true }); continue }
+      const dx = w.x - l.x, dz = w.z - l.z, d = Math.hypot(dx, dz)
+      if (!l.on || d > 4) { l.x = w.x; l.y = w.y; l.z = w.z; l.a = w.k; l.on = true; l.fresh = true; continue }
+      if (d < 0.3) continue
+      const nx = -dz / d, nz = dx / d
+      if (l.fresh) { l.nx = nx; l.nz = nz; l.fresh = false }
+      const q = this.head, o = q * 12, c = q * 16, h = this.hw
+      this.pos.set([l.x + l.nx * h, l.y, l.z + l.nz * h, l.x - l.nx * h, l.y, l.z - l.nz * h, w.x + nx * h, w.y, w.z + nz * h, w.x - nx * h, w.y, w.z - nz * h], o)
+      const a0 = Math.min(0.6, l.a * 0.6), a1 = Math.min(0.6, w.k * 0.6)
+      this.col[c + 3] = a0; this.col[c + 7] = a0; this.col[c + 11] = a1; this.col[c + 15] = a1
+      this.aPos.addUpdateRange(o, 12); this.aCol.addUpdateRange(c, 16); wrote = true
+      this.head = (q + 1) % this.max; this.n = Math.min(this.max, this.n + 1)
+      l.x = w.x; l.y = w.y; l.z = w.z; l.nx = nx; l.nz = nz; l.a = w.k
+    }
+    if (wrote) { this.aPos.needsUpdate = true; this.aCol.needsUpdate = true }
+  }
+}

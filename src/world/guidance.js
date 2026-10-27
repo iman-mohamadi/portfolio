@@ -2,7 +2,7 @@ import * as THREE from 'three'
 import { createMarker } from './modes.js'
 import { canvasTex } from './helpers.js'
 
-const ACCENT = 0xffb562
+const ACCENT = 0xffcf24
 
 /**
  * World-space guidance for the current objective: a soft beam + ground ring at the destination and a chevron ribbon

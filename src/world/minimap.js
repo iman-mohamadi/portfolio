@@ -5,7 +5,7 @@ import { HALF } from './city.js'
  * location (hollow = not yet discovered, solid = discovered, amber = the current objective). The same renderer draws
  * the small HUD map and the large map in the menu.
  */
-const PAPER = '242,239,232', ACCENT = '255,181,98', OK = '143,227,177', COOL = '157,184,255'
+const PAPER = '242,239,232', ACCENT = '255,207,36', OK = '143,227,177', COOL = '157,184,255'
 
 export function createMapRenderer({ city, districts, locations, games }) {
   const statics = new Map() // size|labels → canvas
